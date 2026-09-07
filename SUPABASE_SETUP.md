@@ -11,9 +11,11 @@
 3. New query lagi → tempel isi `supabase/seed.sql` → **Run** (data demo).
 
 ## 3. Storage untuk Foto Produk
-1. Sidebar → **Storage** → **New bucket**.
-2. Nama: `product-images`, aktifkan **Public bucket** → Create.
-3. (Opsional) Policy upload untuk authenticated sudah cukup untuk bucket publik saat testing.
+Cara termudah: **SQL Editor → New query → tempel isi `supabase/migrations/002_storage.sql` → Run.**
+Ini membuat bucket publik `product-images` sekaligus policy baca-publik & tulis-untuk-user-login.
+
+(Alternatif manual: Storage → New bucket `product-images` (Public), lalu tambahkan policy INSERT/UPDATE/DELETE
+untuk role `authenticated` di `storage.objects` — tanpa policy ini upload foto akan gagal karena RLS.)
 
 ## 4. Authentication
 1. **Authentication → Providers → Email**: pastikan Email enabled.

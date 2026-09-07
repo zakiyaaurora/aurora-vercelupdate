@@ -25,6 +25,7 @@ frontend/            # React app (deploy ke Vercel)
     pages/           # semua halaman modul
 supabase/
   migrations/001_init.sql   # schema + RLS + RPC functions
+  migrations/002_storage.sql # bucket product-images + storage policies
   seed.sql                  # data bisnis demo
 scripts/seed_users.mjs      # seed user auth (service_role, lokal saja)
 ```
@@ -33,7 +34,7 @@ scripts/seed_users.mjs      # seed user auth (service_role, lokal saja)
 Lihat **SUPABASE_SETUP.md** untuk langkah lengkap. Ringkas:
 1. Buat project Supabase.
 2. Jalankan `supabase/migrations/001_init.sql` lalu `supabase/seed.sql` di SQL Editor.
-3. Buat bucket Storage publik bernama `product-images`.
+3. Jalankan `supabase/migrations/002_storage.sql` (membuat bucket `product-images` + policy).
 4. Nonaktifkan konfirmasi email (Authentication → Providers → Email).
 5. Isi `frontend/.env`:
    ```
