@@ -5,6 +5,7 @@ import {
   updateBookingStatus, checkoutRental, checkAvailability,
 } from "@/lib/api";
 import { formatRupiah, formatDateShort, todayISO, addDays } from "@/lib/format";
+import { precheckItems, parseNotAvailable } from "@/lib/availability";
 import { PageHeader, SectionCard, Loading, ErrorState, EmptyState, StatusBadge } from "@/components/common";
 import { Field, TextInput, TextArea, NativeSelect, Btn, Modal, SearchInput, Table, Th, Td } from "@/components/form";
 import { Plus, Trash2, PackageCheck, Eye, CheckCircle2, XCircle } from "lucide-react";
@@ -66,8 +67,19 @@ export default function Booking() {
   const save = async () => {
     if (!form.customer_id) { toast.error("Pilih pelanggan"); return; }
     if (form.items.length === 0 || form.items.some((i) => !i.product_id)) { toast.error("Tambahkan minimal 1 produk"); return; }
+    if (!form.start_date || !form.end_date || form.end_date < form.start_date) { toast.error("Tanggal kembali harus setelah tanggal mulai"); return; }
     setSaving(true);
     try {
+      // Pre-check ketersediaan (logic sama dengan katalog & RPC create_booking)
+      const problems = await precheckItems(form.items, form.start_date, form.end_date, products);
+      if (problems.length > 0) {
+        problems.forEach((pr) => toast.error(pr.message));
+        setForm((f) => ({ ...f, items: f.items.map((it) => {
+          const pr = problems.find((x) => x.product_id === it.product_id);
+          return pr ? { ...it, _avail: { total: pr.total, available: pr.available } } : it;
+        }) }));
+        return;
+      }
       await createBooking({
         customer_id: form.customer_id, start_date: form.start_date, end_date: form.end_date,
         event_date: form.event_date || null, discount: Number(form.discount || 0), deposit: Number(form.deposit || 0),
@@ -78,8 +90,7 @@ export default function Booking() {
       setModal(false); reload();
     } catch (e) {
       const msg = String(e.message || "");
-      if (msg.includes("not_available")) toast.error("Produk tidak tersedia pada tanggal tersebut.");
-      else toast.error(msg || "Gagal membuat booking");
+      toast.error(parseNotAvailable(msg, products) || msg || "Gagal membuat booking");
     } finally { setSaving(false); }
   };
 

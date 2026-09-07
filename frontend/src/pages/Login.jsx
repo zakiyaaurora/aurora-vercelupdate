@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Sparkles, Loader2, Eye, EyeOff } from "lucide-react";
 
@@ -127,6 +127,13 @@ export default function Login() {
               {busy ? "Memproses…" : "Masuk"}
             </button>
           </form>
+
+          <p className="mt-6 text-center text-sm text-[#7A6A75]">
+            Calon penyewa?{" "}
+            <Link to="/sewa" className="font-medium text-[#E83E8C] hover:underline" data-testid="login-public-catalog-link">
+              Lihat katalog &amp; cek ketersediaan tanpa login →
+            </Link>
+          </p>
         </div>
       </div>
     </div>

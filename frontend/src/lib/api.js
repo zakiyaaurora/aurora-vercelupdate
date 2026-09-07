@@ -74,6 +74,16 @@ export const updateBookingStatus = (id, status) =>
 export const checkAvailability = (productId, startDate, endDate) =>
   supabase.rpc("check_availability", { p_product_id: productId, p_start: startDate, p_end: endDate }).then(throwOn);
 
+/* ---------------------------- Availability ------------------------------ */
+// Ketersediaan semua produk aktif untuk satu rentang tanggal (1 panggilan)
+export const catalogAvailability = (startDate, endDate) =>
+  supabase.rpc("catalog_availability", { p_start: startDate, p_end: endDate }).then(throwOn);
+// Jadwal per unit (kalender). Server menyamarkan nama penyewa bila belum login.
+export const productSchedule = (productId, startDate, endDate) =>
+  supabase.rpc("product_schedule", { p_product_id: productId, p_start: startDate, p_end: endDate }).then(throwOn);
+// Katalog publik (tanpa login): produk + kategori, tanpa data pelanggan
+export const publicCatalog = () => supabase.rpc("public_catalog").then(throwOn);
+
 /* ------------------------------- Rentals -------------------------------- */
 export const listRentals = () =>
   supabase.from("rentals").select("*, customer:customers(id,name,phone)").order("created_at", { ascending: false }).then(throwOn);

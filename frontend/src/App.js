@@ -20,6 +20,7 @@ import Invoice from "@/pages/Invoice";
 import Laporan from "@/pages/Laporan";
 import Pengguna from "@/pages/Pengguna";
 import Settings from "@/pages/Settings";
+import PublicCatalog from "@/pages/PublicCatalog";
 
 const page = (navKey, element) => (
   <ProtectedRoute navKey={navKey}>{element}</ProtectedRoute>
@@ -41,6 +42,8 @@ function App() {
           <Toaster position="top-right" richColors />
           <Routes>
             <Route path="/login" element={<Login />} />
+            {/* Katalog publik: dapat diakses tanpa login (identitas penyewa disamarkan oleh server) */}
+            <Route path="/sewa" element={<PublicCatalog />} />
             <Route
               element={
                 <ProtectedRoute>

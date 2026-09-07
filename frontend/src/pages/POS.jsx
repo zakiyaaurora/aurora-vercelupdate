@@ -4,6 +4,7 @@ import {
   listCustomers, listProducts, createBooking, checkoutRental, addPayment, checkAvailability,
 } from "@/lib/api";
 import { formatRupiah, todayISO, addDays } from "@/lib/format";
+import { precheckItems, parseNotAvailable } from "@/lib/availability";
 import { PageHeader, SectionCard, Loading, ErrorState, EmptyState } from "@/components/common";
 import { Field, TextInput, NativeSelect, Btn, SearchInput } from "@/components/form";
 import { PAYMENT_METHODS } from "@/lib/constants";
@@ -59,6 +60,13 @@ export default function POS() {
     if (cart.length === 0) { toast.error("Keranjang kosong"); return; }
     setProcessing(true);
     try {
+      // Pre-check ketersediaan agar katalog & transaksi selalu sinkron
+      const problems = await precheckItems(cart, range.start, range.end, products);
+      if (problems.length > 0) {
+        problems.forEach((pr) => toast.error(pr.message));
+        setAvail((m) => { const n = { ...m }; problems.forEach((pr) => { n[pr.product_id] = { total: pr.total, available: pr.available }; }); return n; });
+        return;
+      }
       const booking = await createBooking({
         customer_id: customerId, start_date: range.start, end_date: range.end,
         discount: Number(discount || 0), deposit: Number(deposit || 0), status: "CONFIRMED",
@@ -78,8 +86,7 @@ export default function POS() {
       reload();
     } catch (e) {
       const msg = String(e.message || "");
-      if (msg.includes("not_available")) toast.error("Ada produk yang tidak tersedia pada tanggal tersebut.");
-      else toast.error(msg || "Transaksi gagal");
+      toast.error(parseNotAvailable(msg, products) || msg || "Transaksi gagal");
     } finally { setProcessing(false); }
   };
 

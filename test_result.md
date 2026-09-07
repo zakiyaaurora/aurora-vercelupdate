@@ -101,3 +101,82 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+user_problem_statement: "AURORA SEWA KEBAYA (React + Supabase). Lanjutkan dari GitHub: audit, lalu tambahkan fitur Ketersediaan Kebaya pada Katalog (per-tanggal, jadwal per unit, katalog publik /sewa dengan penyamaran identitas penyewa, pre-check availability di Booking & POS, qty>1)."
+
+backend:
+  - task: "SQL 003_availability.sql: check_availability (rental belum kembali tetap terpakai), catalog_availability, product_schedule (masking anon), public_catalog, create_booking qty>1 + error not_available:<pid>:<avail>, revoke anon pada RPC penulisan"
+    implemented: true
+    working: true
+    file: "supabase/migrations/003_availability.sql"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Diverifikasi di PostgreSQL 15 lokal (stub schema auth/storage): booking qty=2 mengunci 2 unit berbeda; bentrok qty=2 gagal dengan not_available:<pid>:1; qty=1 di tanggal sama berhasil; rental belum kembali (overdue) tetap busy; return -> AVAILABLE; anon: nama tersamar 'Sudah dipesan'/'Sedang disewa', ref_number null; KASIR: nama tampil, phone null; OWNER: nama+phone; anon tidak bisa create_booking/dashboard_stats. Migration 003 BELUM dijalankan di Supabase user (harus via SQL Editor)."
+
+frontend:
+  - task: "Katalog internal: kartu dengan total unit/tersedia/status, tombol Cek Ketersediaan & Lihat Jadwal, filter status ketersediaan, auto-hitung saat tanggal berubah"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/Katalog.jsx, frontend/src/components/CatalogCard.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Menunggu 003 dijalankan di Supabase. Jangan membuat booking/transaksi nyata di Supabase user saat testing (permintaan user)."
+  - task: "ScheduleModal: kalender bulanan + jadwal per unit (RPC product_schedule)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/ScheduleModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Baru dibuat."
+  - task: "Katalog publik /sewa tanpa login (RPC public_catalog + catalog_availability)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/PublicCatalog.jsx, frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Baru dibuat; link dari Login & Katalog."
+  - task: "Pre-check availability di Booking & POS + pesan error jumlah unit tersedia"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/Booking.jsx, frontend/src/pages/POS.jsx, frontend/src/lib/availability.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Hanya uji UI pre-check tanpa menyimpan transaksi."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Katalog internal availability"
+    - "ScheduleModal"
+    - "Katalog publik /sewa"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Kredensial OWNER di /app/memory/test_credentials.md. Supabase nyata milik user: DILARANG membuat booking/rental/pembayaran/produk baru atau menghapus data. Uji read-only saja."

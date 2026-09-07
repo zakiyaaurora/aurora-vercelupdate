@@ -1,14 +1,18 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useAsync } from "@/lib/hooks";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  listProducts, listCategories, createProduct, updateProduct, deleteProduct, checkAvailability,
+  listProducts, listCategories, createProduct, updateProduct, deleteProduct, checkAvailability, catalogAvailability,
 } from "@/lib/api";
-import { formatRupiah, todayISO, addDays } from "@/lib/format";
-import { PageHeader, SectionCard, Loading, ErrorState, EmptyState, StatusBadge } from "@/components/common";
+import { todayISO, addDays, formatDateShort } from "@/lib/format";
+import { availabilityText } from "@/lib/availability";
+import { PageHeader, SectionCard, Loading, ErrorState, EmptyState } from "@/components/common";
 import { Field, TextInput, TextArea, NativeSelect, Btn, Modal, SearchInput } from "@/components/form";
+import CatalogCard from "@/components/CatalogCard";
+import ScheduleModal from "@/components/ScheduleModal";
 import { useAuth } from "@/context/AuthContext";
-import { Plus, Pencil, Trash2, CalendarSearch, Upload } from "lucide-react";
+import { Plus, CalendarSearch, Upload, Globe } from "lucide-react";
 import { toast } from "sonner";
 
 const empty = {
@@ -27,6 +31,7 @@ export default function Katalog() {
 
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("");
+  const [availFilter, setAvailFilter] = useState("");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
@@ -34,17 +39,24 @@ export default function Katalog() {
   const [range, setRange] = useState({ start: todayISO(), end: addDays(todayISO(), 3) });
   const [avail, setAvail] = useState({});
   const [checking, setChecking] = useState(false);
+  const [checkingId, setCheckingId] = useState(null);
+  const [schedule, setSchedule] = useState(null);
 
   const products = useMemo(() => data?.products || [], [data]);
   const categories = data?.categories || [];
+  const rangeValid = Boolean(range.start && range.end && range.end >= range.start);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const okSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.product_code || "").toLowerCase().includes(search.toLowerCase());
       const okCat = !cat || p.category_id === cat;
-      return okSearch && okCat;
+      const a = avail[p.id];
+      const okAvail = !availFilter || (a && (availFilter === "available" ? Number(a.available) > 0 : Number(a.available) <= 0));
+      return okSearch && okCat && okAvail;
     });
-  }, [products, search, cat]);
+  }, [products, search, cat, availFilter, avail]);
+
+  const availableCount = useMemo(() => products.filter((p) => Number(avail[p.id]?.available || 0) > 0).length, [products, avail]);
 
   const openCreate = () => { setForm(empty); setModal("create"); };
   const openEdit = (p) => {
@@ -104,20 +116,35 @@ export default function Katalog() {
     catch (e) { toast.error(e.message || "Gagal menghapus"); }
   };
 
-  const runAvailability = async () => {
+  // Ketersediaan semua produk untuk rentang tanggal terpilih (1 panggilan RPC)
+  const runAvailability = useCallback(async () => {
+    if (!rangeValid) return;
     setChecking(true);
     try {
-      const results = {};
-      await Promise.all(filtered.map(async (p) => {
-        results[p.id] = await checkAvailability(p.id, range.start, range.end);
-      }));
-      setAvail(results);
-      toast.success("Ketersediaan diperbarui");
+      const rows = await catalogAvailability(range.start, range.end);
+      const map = {};
+      (rows || []).forEach((r) => { map[r.product_id] = r; });
+      setAvail(map);
     } catch (e) {
       toast.error(e.message || "Gagal cek ketersediaan");
     } finally {
       setChecking(false);
     }
+  }, [range.start, range.end, rangeValid]);
+
+  // Otomatis hitung ulang saat tanggal berubah / data produk dimuat
+  useEffect(() => { if (data) runAvailability(); }, [data, runAvailability]);
+
+  const checkOne = async (p) => {
+    if (!rangeValid) { toast.error("Tanggal selesai harus setelah tanggal mulai"); return; }
+    setCheckingId(p.id);
+    try {
+      const a = await checkAvailability(p.id, range.start, range.end);
+      setAvail((m) => ({ ...m, [p.id]: { product_id: p.id, ...a } }));
+      const text = availabilityText(a);
+      if (Number(a.available) > 0) toast.success(`${p.name}: ${text}`); else toast.error(`${p.name}: ${text}`);
+    } catch (e) { toast.error(e.message || "Gagal cek ketersediaan"); }
+    finally { setCheckingId(null); }
   };
 
   if (loading) return <Loading />;
@@ -127,8 +154,11 @@ export default function Katalog() {
     <div data-testid="katalog-page">
       <PageHeader
         title="Katalog Kebaya"
-        subtitle={`${products.length} produk terdaftar`}
-        actions={canManage && <Btn onClick={openCreate} data-testid="katalog-add-btn"><Plus className="h-4 w-4" /> Tambah Produk</Btn>}
+        subtitle={`${products.length} produk terdaftar · ${availableCount} tersedia pada ${formatDateShort(range.start)} – ${formatDateShort(range.end)}`}
+        actions={<>
+          <Link to="/sewa" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-[#E2D5DD] hover:bg-[#FAF7F8] px-3.5 py-2 text-sm font-medium text-[#1F191E]" data-testid="katalog-public-link"><Globe className="h-4 w-4" /> Katalog Publik</Link>
+          {canManage && <Btn onClick={openCreate} data-testid="katalog-add-btn"><Plus className="h-4 w-4" /> Tambah Produk</Btn>}
+        </>}
       />
 
       <SectionCard className="mb-6">
@@ -138,58 +168,38 @@ export default function Katalog() {
             value={cat} onChange={(e) => setCat(e.target.value)}
             placeholder="Semua Kategori"
             options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            className="sm:w-44"
+            data-testid="katalog-category-filter"
+          />
+          <NativeSelect
+            value={availFilter} onChange={(e) => setAvailFilter(e.target.value)}
+            placeholder="Semua Status"
+            options={[{ value: "available", label: "Hanya yang tersedia" }, { value: "unavailable", label: "Tidak tersedia" }]}
             className="sm:w-48"
+            data-testid="katalog-availability-filter"
           />
           <div className="flex-1" />
-          <div className="flex items-end gap-2">
-            <Field label="Dari"><TextInput type="date" value={range.start} onChange={(e) => setRange((r) => ({ ...r, start: e.target.value }))} className="w-40" /></Field>
-            <Field label="Sampai"><TextInput type="date" value={range.end} onChange={(e) => setRange((r) => ({ ...r, end: e.target.value }))} className="w-40" /></Field>
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label="Tgl Mulai Sewa"><TextInput type="date" value={range.start} onChange={(e) => setRange((r) => ({ ...r, start: e.target.value }))} className="w-40" data-testid="katalog-start-date" /></Field>
+            <Field label="Tgl Selesai Sewa"><TextInput type="date" value={range.end} min={range.start} onChange={(e) => setRange((r) => ({ ...r, end: e.target.value }))} className="w-40" data-testid="katalog-end-date" /></Field>
             <Btn variant="secondary" onClick={runAvailability} loading={checking} data-testid="katalog-check-availability"><CalendarSearch className="h-4 w-4" /> Cek Ketersediaan</Btn>
           </div>
         </div>
+        {!rangeValid && <p className="mt-2 text-xs text-[#B91C1C]">Tanggal selesai harus setelah tanggal mulai.</p>}
       </SectionCard>
 
       {filtered.length === 0 ? (
-        <EmptyState title="Tidak ada produk" subtitle="Tambahkan produk kebaya pertama Anda." action={canManage && <Btn onClick={openCreate}><Plus className="h-4 w-4" /> Tambah Produk</Btn>} />
+        <EmptyState title="Tidak ada produk" subtitle={availFilter ? "Tidak ada produk dengan status tersebut pada tanggal yang dipilih." : "Tambahkan produk kebaya pertama Anda."} action={canManage && !availFilter && <Btn onClick={openCreate}><Plus className="h-4 w-4" /> Tambah Produk</Btn>} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filtered.map((p) => {
-            const a = avail[p.id];
-            return (
-              <div key={p.id} className="bg-white border border-[#F8D7E3] rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(232,62,140,0.04)] hover:shadow-[0_4px_20px_rgba(232,62,140,0.1)] transition-all group" data-testid={`product-card-${p.id}`}>
-                <div className="aspect-[4/5] bg-[#FFF5F8] overflow-hidden relative">
-                  {p.photo_url ? (
-                    <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  ) : (
-                    <div className="h-full w-full grid place-items-center text-[#E0A8C0] text-sm">Tanpa Foto</div>
-                  )}
-                  <div className="absolute top-3 left-3"><StatusBadge status={p.status === "ACTIVE" ? "AVAILABLE" : "INACTIVE"} /></div>
-                </div>
-                <div className="p-4">
-                  <p className="text-[11px] text-[#B79BAA] font-medium">{p.category?.name || "—"} · {p.product_code || "—"}</p>
-                  <h3 className="font-semibold text-[#1F191E] mt-0.5 truncate">{p.name}</h3>
-                  <p className="text-[#E83E8C] font-bold mt-1">{formatRupiah(p.rental_price)} <span className="text-xs font-normal text-[#7A6A75]">/sewa</span></p>
-                  {a && (
-                    <div className="mt-2 text-xs" data-testid={`availability-${p.id}`}>
-                      {a.available > 0 ? (
-                        <span className="text-[#047857] font-medium">✓ Tersedia {a.available}/{a.total} unit</span>
-                      ) : (
-                        <span className="text-[#B91C1C] font-medium">✕ Tidak tersedia pada tanggal ini</span>
-                      )}
-                    </div>
-                  )}
-                  {canManage && (
-                    <div className="mt-3 flex gap-2">
-                      <Btn variant="secondary" className="flex-1 py-1.5" onClick={() => openEdit(p)} data-testid={`product-edit-${p.id}`}><Pencil className="h-3.5 w-3.5" /> Edit</Btn>
-                      <Btn variant="ghost" className="px-2.5 py-1.5 text-[#B91C1C]" onClick={() => remove(p)} data-testid={`product-delete-${p.id}`}><Trash2 className="h-4 w-4" /></Btn>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {filtered.map((p) => (
+            <CatalogCard key={p.id} product={p} avail={avail[p.id]} checking={checkingId === p.id} canManage={canManage}
+              onCheck={checkOne} onSchedule={(prod) => setSchedule(prod)} onEdit={openEdit} onDelete={remove} />
+          ))}
         </div>
       )}
+
+      <ScheduleModal product={schedule} open={!!schedule} onClose={() => setSchedule(null)} startDate={rangeValid ? range.start : null} endDate={rangeValid ? range.end : null} />
 
       <Modal
         open={!!modal} onClose={() => setModal(null)}
