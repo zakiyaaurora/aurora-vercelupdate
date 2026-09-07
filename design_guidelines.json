@@ -1,0 +1,138 @@
+{
+  "brand": {
+    "name": "AURORA SEWA KEBAYA",
+    "tagline": "Sistem Manajemen & POS Rental Kebaya Premium",
+    "tone": "Pink clean, elegant, feminine, modern, premium, professional, uncluttered",
+    "language": "Indonesian (Bahasa Indonesia)",
+    "currency_format": "Rp 500.000 (IDR standard)"
+  },
+  "theme": {
+    "default": "light",
+    "mode": "Light mode with soft blush background and deep charcoal high-contrast typography",
+    "css_variables": {
+      "--background": "0 20% 98%",
+      "--foreground": "320 20% 12%",
+      "--card": "0 0% 100%",
+      "--card-foreground": "320 20% 12%",
+      "--popover": "0 0% 100%",
+      "--popover-foreground": "320 20% 12%",
+      "--primary": "336 78% 57%",
+      "--primary-foreground": "0 0% 100%",
+      "--secondary": "330 40% 95%",
+      "--secondary-foreground": "336 60% 30%",
+      "--muted": "330 20% 96%",
+      "--muted-foreground": "320 10% 45%",
+      "--accent": "330 50% 93%",
+      "--accent-foreground": "336 75% 40%",
+      "--destructive": "350 84% 60%",
+      "--destructive-foreground": "0 0% 100%",
+      "--border": "330 20% 90%",
+      "--input": "330 20% 90%",
+      "--ring": "336 78% 57%",
+      "--radius": "0.6rem"
+    },
+    "color_palette": {
+      "primary_pink": "#E83E8C",
+      "primary_pink_hover": "#D62B78",
+      "pink_light_bg": "#FFF5F8",
+      "pink_subtle": "#FCE4EC",
+      "rose_accent": "#F472B6",
+      "neutral_dark": "#1F191E",
+      "neutral_body": "#4A3F47",
+      "neutral_light": "#FAF7F8",
+      "card_surface": "#FFFFFF",
+      "border_pink_soft": "#F8D7E3",
+      "status_available_green": "#10B981",
+      "status_available_bg": "#ECFDF5",
+      "status_rented_amber": "#F59E0B",
+      "status_rented_bg": "#FEF3C7",
+      "status_booking_purple": "#8B5CF6",
+      "status_booking_bg": "#F3E8FF",
+      "status_overdue_red": "#EF4444",
+      "status_overdue_bg": "#FEF2F2"
+    }
+  },
+  "typography": {
+    "heading_font": "Plus Jakarta Sans, sans-serif",
+    "body_font": "Plus Jakarta Sans, sans-serif",
+    "accent_serif": "Cormorant Garamond, serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "font_weights": {
+      "regular": "400",
+      "medium": "500",
+      "semibold": "600",
+      "bold": "700"
+    },
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl font-bold tracking-tight text-[#1F191E]",
+      "h2": "text-xl sm:text-2xl font-semibold tracking-tight text-[#1F191E]",
+      "h3": "text-lg font-semibold text-[#1F191E]",
+      "h4": "text-base font-medium text-[#1F191E]",
+      "body": "text-sm text-[#4A3F47] leading-relaxed",
+      "caption": "text-xs text-[#7A6A75]"
+    }
+  },
+  "layout_architecture": {
+    "type": "Admin Dashboard System (Desktop First, Fully Responsive Tablet/Mobile)",
+    "sidebar": {
+      "width_expanded": "w-64",
+      "width_collapsed": "w-20",
+      "bg_color": "bg-white border-r border-[#F8D7E3]",
+      "nav_items": [
+        {"key": "dashboard", "label": "Dashboard", "icon": "LayoutDashboard"},
+        {"key": "katalog", "label": "Katalog Kebaya", "icon": "Shirt"},
+        {"key": "booking", "label": "Booking & Jadwal", "icon": "Calendar"},
+        {"key": "rental", "label": "Manajemen Rental", "icon": "Clock"},
+        {"key": "pos", "label": "POS / Kasir Transaksi", "icon": "ShoppingBag"},
+        {"key": "pelanggan", "label": "Data Pelanggan", "icon": "Users"},
+        {"key": "stok", "label": "Stok & Inventaris", "icon": "Boxes"},
+        {"key": "pembayaran", "label": "Riwayat Pembayaran", "icon": "CreditCard"},
+        {"key": "invoice", "label": "Cetak Invoice", "icon": "FileText"},
+        {"key": "laporan", "label": "Laporan Keuangan", "icon": "BarChart3"},
+        {"key": "pengguna", "label": "Manajemen Pengguna", "icon": "UserCog"},
+        {"key": "settings", "label": "Pengaturan Toko", "icon": "Settings"}
+      ]
+    },
+    "header": {
+      "height": "h-16",
+      "bg": "bg-white/90 backdrop-blur-md border-b border-[#F8D7E3] z-40 sticky top-0",
+      "elements": ["Toggle Sidebar", "Breadcrumb / Page Title", "Quick Search", "Notifications Popover", "User Profile Badge & Role", "Logout Button"]
+    }
+  },
+  "components_design": {
+    "cards": "bg-white border border-[#F8D7E3] rounded-xl p-5 shadow-[0_2px_12px_rgba(232,62,140,0.04)] transition-all hover:shadow-[0_4px_20px_rgba(232,62,140,0.08)]",
+    "tables": "w-full text-left text-sm text-[#4A3F47] border-collapse th:bg-[#FFF5F8] th:text-[#1F191E] th:font-semibold th:p-3 td:p-3 td:border-b td:border-[#FCE4EC]",
+    "buttons": {
+      "primary": "bg-[#E83E8C] hover:bg-[#D62B78] text-white font-medium rounded-lg px-4 py-2 transition-all shadow-sm active:scale-95 text-sm",
+      "secondary": "bg-[#FFF5F8] hover:bg-[#FCE4EC] text-[#E83E8C] border border-[#F8D7E3] font-medium rounded-lg px-4 py-2 transition-all text-sm",
+      "outline": "border border-[#E2D5DD] hover:bg-[#FAF7F8] text-[#1F191E] font-medium rounded-lg px-4 py-2 transition-all text-sm",
+      "danger": "bg-[#EF4444] hover:bg-[#DC2626] text-white font-medium rounded-lg px-4 py-2 transition-all text-sm"
+    },
+    "badges": {
+      "Tersedia": "bg-[#ECFDF5] text-[#047857] border border-[#A7F3D0] rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      "Disewa": "bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A] rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      "Booking": "bg-[#F3E8FF] text-[#6D28D9] border border-[#DDD6FE] rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      "Terlambat": "bg-[#FEF2F2] text-[#B91C1C] border border-[#FECACA] rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      "Lunas": "bg-[#ECFDF5] text-[#047857] border border-[#A7F3D0] rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      "DP / Sebagian": "bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A] rounded-full px-2.5 py-0.5 text-xs font-semibold"
+    },
+    "modals": "bg-white rounded-2xl border border-[#F8D7E3] shadow-2xl max-w-lg w-full p-6",
+    "pos_screen": "Grid 12 cols layout: Left 7 cols for Customer selector + Catalog filter + Interactive Product Cards with availability status badges. Right 5 cols for Checkout Summary, Rental Duration Picker, Security Deposit Input, Payment Method (Cash, QRIS, Transfer), and Instant Receipt/Invoice Trigger.",
+    "invoice_print": "A4 printable format with Aurora Sewa Kebaya logo header, Customer measurements breakdown, Rental period (Tanggal Ambil & Tanggal Kembali), Payment breakdown (Sewa, Denda/Deposit, Sisa Bayar), Syarat & Ketentuan Rental, and Signature blocks."
+  },
+  "image_urls": {
+    "hero_kebaya_white": "https://images.unsplash.com/photo-1779619023802-88e243982ed0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHwzfHxpbmRvbmVzaWFuJTIwa2ViYXlhJTIwdHJhZGl0aW9uYWwlMjBkcmVzcyUyMGZhc2hpb24lMjBlbGVnYW5jZXxlbnwwfHx8fDE3ODg3NDczMzR8MA&ixlib=rb-4.1.0&q=85",
+    "kebaya_pink_silk": "https://images.unsplash.com/photo-1754925434445-fc9bb09ea8ff?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzB8MHwxfHNlYXJjaHwzfHx0cmFkaXRpb25hbCUyMHdlZGRpbmclMjBkcmVzcyUyMGVsZWdhbnQlMjBsYWNlJTIwcGluayUyMHNpbGt8ZW58MHx8fHwxNzg4NzQ3MzQxfDA&ixlib=rb-4.1.0&q=85",
+    "kebaya_modern_lavender": "https://images.unsplash.com/photo-1673185478488-5c8b3be8d53d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzB8MHwxfHNlYXJjaHwyfHx0cmFkaXRpb25hbCUyMHdlZGRpbmclMjBkcmVzcyUyMGVsZWdhbnQlMjBsYWNlJTIwcGluayUyMHNpbGt8ZW58MHx8fHwxNzg4NzQ3MzQxfDA&ixlib=rb-4.1.0&q=85",
+    "kebaya_traditional_blue": "https://images.unsplash.com/photo-1580308388075-738727692cdb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHw0fHxpbmRvbmVzaWFuJTIwa2ViYXlhJTIwdHJhZGl0aW9uYWwlMjBkcmVzcyUyMGVsZWdhbnQlMjBsYWNlJTIwcGluayUyMHNpbGt8ZW58MHx8fHwxNzg4NzQ3MzM0fDA&ixlib=rb-4.1.0&q=85",
+    "kebaya_bridal_gold": "https://images.unsplash.com/photo-1779619011908-cc586d6b1191?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHwyfHxpbmRvbmVzaWFuJTIwa2ViYXlhJTIwdHJhZGl0aW9uYWwlMjBkcmVzcyUyMGVsZWdhbnQlMjBsYWNlJTIwcGluayUyMHNpbGt8ZW58MHx8fHwxNzg4NzQ3MzM0fDA&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "All React code should be written in JavaScript (.js / .jsx format) compatible with standard React 18 + Tailwind setup.",
+    "Every key button, input, tab, navigation link, card, and interactive element MUST have a unique descriptive data-testid attribute in kebab-case (e.g. data-testid='pos-add-to-cart-button', data-testid='katalog-filter-category').",
+    "Ensure all monetary numbers are formatted consistently in Indonesian Rupiah format: Rp 500.000.",
+    "Do NOT use transparent backgrounds on headers, popovers, select menus, or dropdowns. Always specify bg-white or backdrop-blur with white tint.",
+    "Support full real-time database state (or state hooks) with reactive updates across Dashboard KPI cards, POS cart, Booking calendar, Rental checkouts/returns, and Reports.",
+    "Maintain high aesthetic standards: soft pink highlights (#FFF5F8, #E83E8C), refined typography, clear status pill badges, and generous spacing."
+  ]
+}
