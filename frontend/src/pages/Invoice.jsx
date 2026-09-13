@@ -128,10 +128,22 @@ export default function Invoice() {
       store.name || "AURORA SEWA KEBAYA"
     }</title>
 
+          ${Array.from(document.styleSheets)
+            .map((sheet) => {
+              try {
+                return Array.from(sheet.cssRules)
+                  .map((rule) => rule.cssText)
+                  .join("\\n");
+              } catch {
+                return "";
+              }
+            })
+            .join("\\n")}
+
           <style>
             @page {
-              size: A4;
-              margin: 12mm;
+              size: A4 portrait;
+              margin: 7mm;
             }
 
             * {
@@ -140,33 +152,103 @@ export default function Invoice() {
 
             html,
             body {
-              margin: 0;
-              padding: 0;
-              background: #ffffff;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
               color: #1F191E;
-              font-family: Arial, Helvetica, sans-serif;
-              font-size: 13px;
-              line-height: 1.45;
             }
 
             body {
-              padding: 0;
+              font-size: 11px !important;
+              line-height: 1.3 !important;
             }
 
             .invoice-document {
-              width: 100%;
-              max-width: 190mm;
-              margin: 0 auto;
-              background: #ffffff;
+              width: 100% !important;
+              max-width: 196mm !important;
+              margin: 0 auto !important;
+              padding: 0 !important;
+              background: #ffffff !important;
             }
 
-            table {
-              width: 100%;
-              border-collapse: collapse;
+            #invoice-print {
+              width: 100% !important;
+              padding: 0 !important;
+              margin: 0 !important;
             }
 
-            tr {
-              page-break-inside: avoid;
+            #invoice-print .mt-10 {
+              margin-top: 20px !important;
+            }
+
+            #invoice-print .mt-8 {
+              margin-top: 14px !important;
+            }
+
+            #invoice-print .mt-6 {
+              margin-top: 12px !important;
+            }
+
+            #invoice-print .mt-5 {
+              margin-top: 10px !important;
+            }
+
+            #invoice-print .mt-3 {
+              margin-top: 6px !important;
+            }
+
+            #invoice-print .p-4 {
+              padding: 9px !important;
+            }
+
+            #invoice-print .px-4 {
+              padding-left: 9px !important;
+              padding-right: 9px !important;
+            }
+
+            #invoice-print .py-3 {
+              padding-top: 6px !important;
+              padding-bottom: 6px !important;
+            }
+
+            #invoice-print .py-2 {
+              padding-top: 4px !important;
+              padding-bottom: 4px !important;
+            }
+
+            #invoice-print .gap-5 {
+              gap: 10px !important;
+            }
+
+            #invoice-print .gap-4 {
+              gap: 8px !important;
+            }
+
+            #invoice-print table {
+              width: 100% !important;
+              border-collapse: collapse !important;
+            }
+
+            #invoice-print th,
+            #invoice-print td {
+              padding-top: 5px !important;
+              padding-bottom: 5px !important;
+            }
+
+            #invoice-print tr {
+              page-break-inside: avoid !important;
+            }
+
+            #invoice-print .h-12 {
+              height: 40px !important;
+            }
+
+            #invoice-print .w-12 {
+              width: 40px !important;
+            }
+
+            #invoice-print .h-14 {
+              height: 28px !important;
             }
 
             .no-print {
@@ -176,14 +258,14 @@ export default function Invoice() {
             @media print {
               html,
               body {
-                width: 100%;
-                height: auto;
-                overflow: visible;
+                width: 210mm;
+                min-height: 297mm;
+                overflow: visible !important;
               }
 
               .invoice-document {
-                width: 100%;
-                max-width: none;
+                width: 196mm !important;
+                max-width: 196mm !important;
               }
             }
           </style>
