@@ -91,6 +91,11 @@ export default function Invoice() {
     }
   };
 
+  /*
+   * CETAK INVOICE
+   * Dibuat dalam jendela khusus agar tidak terganggu
+   * oleh layout/modal aplikasi.
+   */
   const printInvoice = () => {
     if (!detail) return;
 
@@ -115,6 +120,19 @@ export default function Invoice() {
       return;
     }
 
+    /*
+     * Ambil stylesheet yang sedang dipakai aplikasi.
+     * Hanya link/style HTML yang disalin,
+     * bukan isi CSS-nya ke dalam kode.
+     */
+    const styles = Array.from(
+      document.querySelectorAll(
+        'link[rel="stylesheet"], style'
+      )
+    )
+      .map((element) => element.outerHTML)
+      .join("\n");
+
     const invoiceHtml = printElement.innerHTML;
 
     printWindow.document.open();
@@ -124,26 +142,18 @@ export default function Invoice() {
       <html>
         <head>
           <meta charset="UTF-8" />
-          <title>${detail.invoice_number || "Invoice"} - ${
-      store.name || "AURORA SEWA KEBAYA"
-    }</title>
 
-          ${Array.from(document.styleSheets)
-            .map((sheet) => {
-              try {
-                return Array.from(sheet.cssRules)
-                  .map((rule) => rule.cssText)
-                  .join("\\n");
-              } catch {
-                return "";
-              }
-            })
-            .join("\\n")}
+          <title>
+            ${detail.invoice_number || "Invoice"} -
+            ${store.name || "AURORA SEWA KEBAYA"}
+          </title>
+
+          ${styles}
 
           <style>
             @page {
               size: A4 portrait;
-              margin: 7mm;
+              margin: 8mm;
             }
 
             * {
@@ -154,74 +164,116 @@ export default function Invoice() {
             body {
               margin: 0 !important;
               padding: 0 !important;
-              background: #ffffff !important;
-              color: #1F191E;
-            }
-
-            body {
+              width: 100% !important;
+              min-height: 100% !important;
+              background: white !important;
+              color: #1F191E !important;
+              font-family: Arial, Helvetica, sans-serif !important;
               font-size: 11px !important;
               line-height: 1.3 !important;
             }
 
+            body {
+              overflow: visible !important;
+            }
+
             .invoice-document {
-              width: 100% !important;
-              max-width: 196mm !important;
+              width: 194mm !important;
+              max-width: 194mm !important;
               margin: 0 auto !important;
               padding: 0 !important;
-              background: #ffffff !important;
+              background: white !important;
             }
 
             #invoice-print {
               width: 100% !important;
-              padding: 0 !important;
               margin: 0 !important;
+              padding: 0 !important;
             }
 
+            /*
+             * Membuat jarak lebih rapat agar seluruh invoice
+             * masuk ke satu halaman A4.
+             */
+
             #invoice-print .mt-10 {
-              margin-top: 20px !important;
+              margin-top: 16px !important;
             }
 
             #invoice-print .mt-8 {
-              margin-top: 14px !important;
-            }
-
-            #invoice-print .mt-6 {
-              margin-top: 12px !important;
-            }
-
-            #invoice-print .mt-5 {
               margin-top: 10px !important;
             }
 
+            #invoice-print .mt-6 {
+              margin-top: 9px !important;
+            }
+
+            #invoice-print .mt-5 {
+              margin-top: 8px !important;
+            }
+
             #invoice-print .mt-3 {
-              margin-top: 6px !important;
+              margin-top: 5px !important;
+            }
+
+            #invoice-print .mt-2 {
+              margin-top: 4px !important;
             }
 
             #invoice-print .p-4 {
-              padding: 9px !important;
+              padding: 7px !important;
             }
 
             #invoice-print .px-4 {
-              padding-left: 9px !important;
-              padding-right: 9px !important;
+              padding-left: 7px !important;
+              padding-right: 7px !important;
             }
 
             #invoice-print .py-3 {
-              padding-top: 6px !important;
-              padding-bottom: 6px !important;
+              padding-top: 5px !important;
+              padding-bottom: 5px !important;
             }
 
             #invoice-print .py-2 {
+              padding-top: 3px !important;
+              padding-bottom: 3px !important;
+            }
+
+            #invoice-print .py-2\\.5 {
               padding-top: 4px !important;
               padding-bottom: 4px !important;
             }
 
             #invoice-print .gap-5 {
-              gap: 10px !important;
+              gap: 8px !important;
             }
 
             #invoice-print .gap-4 {
-              gap: 8px !important;
+              gap: 7px !important;
+            }
+
+            #invoice-print .gap-3 {
+              gap: 6px !important;
+            }
+
+            #invoice-print .h-12 {
+              height: 38px !important;
+            }
+
+            #invoice-print .w-12 {
+              width: 38px !important;
+            }
+
+            #invoice-print .h-14 {
+              height: 24px !important;
+            }
+
+            #invoice-print .text-2xl {
+              font-size: 19px !important;
+            }
+
+            #invoice-print .text-base {
+              font-size: 12px !important;
             }
 
             #invoice-print table {
@@ -231,24 +283,18 @@ export default function Invoice() {
 
             #invoice-print th,
             #invoice-print td {
-              padding-top: 5px !important;
-              padding-bottom: 5px !important;
+              padding-top: 4px !important;
+              padding-bottom: 4px !important;
             }
 
             #invoice-print tr {
               page-break-inside: avoid !important;
+              break-inside: avoid !important;
             }
 
-            #invoice-print .h-12 {
-              height: 40px !important;
-            }
-
-            #invoice-print .w-12 {
-              width: 40px !important;
-            }
-
-            #invoice-print .h-14 {
-              height: 28px !important;
+            #invoice-print .rounded-xl,
+            #invoice-print .rounded-lg {
+              border-radius: 6px !important;
             }
 
             .no-print {
@@ -258,14 +304,14 @@ export default function Invoice() {
             @media print {
               html,
               body {
-                width: 210mm;
-                min-height: 297mm;
+                width: 210mm !important;
+                min-height: 297mm !important;
                 overflow: visible !important;
               }
 
               .invoice-document {
-                width: 196mm !important;
-                max-width: 196mm !important;
+                width: 194mm !important;
+                max-width: 194mm !important;
               }
             }
           </style>
@@ -273,7 +319,12 @@ export default function Invoice() {
 
         <body>
           <div class="invoice-document">
-            ${invoiceHtml}
+            <div
+              id="invoice-print"
+              class="text-sm text-[#1F191E] bg-white"
+            >
+              ${invoiceHtml}
+            </div>
           </div>
         </body>
       </html>
@@ -288,7 +339,7 @@ export default function Invoice() {
       setTimeout(() => {
         printWindow.close();
       }, 500);
-    }, 300);
+    }, 500);
   };
 
   if (loading) {
@@ -496,7 +547,7 @@ export default function Invoice() {
               </div>
             </div>
 
-            {/* CUSTOMER */}
+            {/* CUSTOMER + INVOICE INFO */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-6">
               <div className="rounded-xl border border-[#FCE4EC] p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-[#A18895] mb-2">
@@ -508,8 +559,7 @@ export default function Invoice() {
 
                   <div>
                     <p className="font-semibold text-base">
-                      {detail.customer?.name ||
-                        "-"}
+                      {detail.customer?.name || "-"}
                     </p>
 
                     {(detail.customer?.phone ||
@@ -533,7 +583,6 @@ export default function Invoice() {
                 </div>
               </div>
 
-              {/* INVOICE INFO */}
               <div className="rounded-xl border border-[#FCE4EC] p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-[#A18895] mb-2">
                   Informasi Invoice
@@ -655,14 +704,12 @@ export default function Invoice() {
 
                           <td className="px-4 py-3">
                             <p className="font-medium">
-                              {item.product?.name ||
-                                "-"}
+                              {item.product?.name || "-"}
                             </p>
 
                             {item.product?.sku && (
                               <p className="text-[10px] text-[#A18895] mt-0.5">
-                                SKU:{" "}
-                                {item.product.sku}
+                                SKU: {item.product.sku}
                               </p>
                             )}
                           </td>
@@ -790,7 +837,7 @@ export default function Invoice() {
               </p>
             </div>
 
-            {/* SYARAT */}
+            {/* SYARAT & KETENTUAN */}
             {store.terms && (
               <div className="mt-6 border-t border-[#FCE4EC] pt-4">
                 <p className="text-xs font-semibold mb-1">
