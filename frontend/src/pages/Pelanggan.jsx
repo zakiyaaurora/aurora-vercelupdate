@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAsync } from "@/lib/hooks";
 import {
   listCustomers,
+  listBookings,
   createCustomer,
   updateCustomer,
   deleteCustomer,
@@ -76,7 +77,13 @@ export default function Pelanggan() {
     loading,
     error,
     reload,
-  } = useAsync(listCustomers, []);
+  } = useAsync(async () => {
+    const [customers, bookings] = await Promise.all([
+      listCustomers(),
+      listBookings(),
+    ]);
+    return { customers, bookings };
+  }, []);
 
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
@@ -84,9 +91,44 @@ export default function Pelanggan() {
   const [saving, setSaving] = useState(false);
 
   const customers = useMemo(
-    () => data || [],
+    () => data?.customers || [],
     [data]
   );
+
+  const bookings = useMemo(
+    () => data?.bookings || [],
+    [data]
+  );
+
+  // Booking terbaru per pelanggan. Status pengambilan dibaca dari Booking,
+  // bukan disimpan ulang di tabel pelanggan.
+  const latestBookingByCustomer = useMemo(() => {
+    const map = new Map();
+
+    [...bookings]
+      .sort((a, b) => {
+        const da = new Date(
+          a.created_at || a.booking_date || a.start_date || 0
+        ).getTime();
+        const db = new Date(
+          b.created_at || b.booking_date || b.start_date || 0
+        ).getTime();
+        return db - da;
+      })
+      .forEach((booking) => {
+        const customerId =
+          booking.customer_id || booking.customer?.id;
+
+        if (customerId && !map.has(customerId)) {
+          map.set(customerId, booking);
+        }
+      });
+
+    return map;
+  }, [bookings]);
+
+  const getCustomerBooking = (customer) =>
+    latestBookingByCustomer.get(customer.id) || null;
 
   const filtered = useMemo(
     () =>
@@ -213,7 +255,7 @@ export default function Pelanggan() {
    * CETAK DATA JAHIT
    * Format A5 Portrait - 1 lembar
    */
-  const printDataJahit = (customer) => {
+  const printDataJahit = (customer, booking = getCustomerBooking(customer)) => {
     const printWindow = window.open(
       "",
       "_blank",
@@ -284,6 +326,50 @@ export default function Pelanggan() {
       customer.measurement_notes ||
       customer.notes ||
       "-";
+
+    const isShipping =
+      booking?.pickup_method === "SHIPPING";
+
+    const pickupLabel = isShipping
+      ? "📦 PAKET KIRIMAN"
+      : booking?.pickup_method === "STORE_PICKUP"
+      ? "🏠 AMBIL DI TOKO"
+      : "BELUM ADA BOOKING";
+
+    const shippingRecipient =
+      booking?.shipping_recipient ||
+      customer.name ||
+      "-";
+
+    const shippingPhone =
+      booking?.shipping_phone ||
+      customer.whatsapp ||
+      customer.phone ||
+      "-";
+
+    const shippingAddress =
+      booking?.shipping_address ||
+      customer.address ||
+      "-";
+
+    const shippingDate = booking?.shipping_date
+      ? new Date(booking.shipping_date).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+      : "-";
+
+    const returnShipDate = booking?.return_ship_date
+      ? new Date(booking.return_ship_date).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+      : "-";
+
+    const bookingNumber =
+      booking?.booking_number || booking?.booking_no || "-";
 
     printWindow.document.open();
 
@@ -490,6 +576,38 @@ export default function Pelanggan() {
               font-size: 7.5px;
             }
 
+            .shipping-notice {
+              margin-top: 8px;
+              padding: 7px 8px;
+              border: 1.5px solid #e83e8c;
+              border-radius: 5px;
+              background: #fff4f8;
+            }
+
+            .shipping-notice-title {
+              margin: 0 0 4px;
+              color: #e83e8c;
+              font-size: 9px;
+              font-weight: 700;
+              text-transform: uppercase;
+            }
+
+            .shipping-notice-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 3px 10px;
+            }
+
+            .shipping-notice .small {
+              font-size: 7.5px;
+              color: #806d77;
+            }
+
+            .shipping-notice .strong {
+              font-weight: 700;
+              color: #241d22;
+            }
+
             .signatures {
               display: grid;
               grid-template-columns: 1fr 1fr;
@@ -627,6 +745,73 @@ export default function Pelanggan() {
 
                 </div>
 
+              </div>
+
+            </div>
+
+            <div class="section">
+
+              <p class="section-title">
+                Status Pengambilan
+              </p>
+
+              <div class="shipping-notice">
+                <p class="shipping-notice-title">
+                  ${esc(pickupLabel)}
+                </p>
+
+                ${
+                  booking
+                    ? `
+                <div class="shipping-notice-grid">
+                  <div>
+                    <span class="small">Booking</span><br />
+                    <span class="strong">${esc(bookingNumber)}</span>
+                  </div>
+
+                  <div>
+                    <span class="small">Metode</span><br />
+                    <span class="strong">${isShipping ? "Paket Kiriman" : "Ambil di Toko"}</span>
+                  </div>
+
+                  ${
+                    isShipping
+                      ? `
+                  <div>
+                    <span class="small">Penerima</span><br />
+                    <span class="strong">${esc(shippingRecipient)}</span>
+                  </div>
+
+                  <div>
+                    <span class="small">WhatsApp</span><br />
+                    <span class="strong">${esc(shippingPhone)}</span>
+                  </div>
+
+                  <div>
+                    <span class="small">Tanggal Kirim</span><br />
+                    <span class="strong">${esc(shippingDate)}</span>
+                  </div>
+
+                  <div>
+                    <span class="small">Wajib Kirim Kembali</span><br />
+                    <span class="strong">${esc(returnShipDate)}</span>
+                  </div>
+
+                  <div style="grid-column: 1 / -1;">
+                    <span class="small">Alamat Kirim</span><br />
+                    <span class="strong">${esc(shippingAddress)}</span>
+                  </div>
+                  `
+                      : ""
+                  }
+                </div>
+                `
+                    : `
+                <div class="small">
+                  Belum ada booking aktif/tercatat untuk pelanggan ini.
+                </div>
+                `
+                }
               </div>
 
             </div>
@@ -886,6 +1071,7 @@ export default function Pelanggan() {
                 <Th>Nama</Th>
                 <Th>Kontak</Th>
                 <Th>Alamat</Th>
+                <Th>Pengambilan</Th>
                 <Th>Terdaftar</Th>
                 <Th className="text-right">
                   Aksi
@@ -918,6 +1104,49 @@ export default function Pelanggan() {
 
                   <Td className="max-w-[220px] truncate">
                     {c.address || "-"}
+                  </Td>
+
+                  <Td>
+                    {(() => {
+                      const booking = getCustomerBooking(c);
+
+                      if (!booking) {
+                        return (
+                          <span className="text-xs text-[#A18895]">
+                            Belum ada booking
+                          </span>
+                        );
+                      }
+
+                      if (booking.pickup_method === "SHIPPING") {
+                        return (
+                          <div className="min-w-[150px]">
+                            <span className="inline-flex items-center rounded-full bg-[#FFF0F6] px-2.5 py-1 text-xs font-semibold text-[#E83E8C]">
+                              📦 Paket Kiriman
+                            </span>
+                            <p className="mt-1 text-[11px] text-[#7A6A75]">
+                              {booking.booking_number || booking.booking_no || "-"}
+                            </p>
+                            {booking.shipping_date && (
+                              <p className="text-[11px] text-[#7A6A75]">
+                                Kirim {formatDateShort(booking.shipping_date)}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="min-w-[150px]">
+                          <span className="inline-flex items-center rounded-full bg-[#ECFDF5] px-2.5 py-1 text-xs font-semibold text-[#047857]">
+                            🏠 Ambil di Toko
+                          </span>
+                          <p className="mt-1 text-[11px] text-[#7A6A75]">
+                            {booking.booking_number || booking.booking_no || "-"}
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </Td>
 
                   <Td>
