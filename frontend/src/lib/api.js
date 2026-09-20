@@ -190,13 +190,28 @@ export const getBooking = (id) =>
 export const createBooking = (payload) =>
   supabase.rpc("create_booking", { p: payload }).then(throwOn);
 
-/* BARU: Edit Booking + cek availability di Supabase */
+/* Edit Booking + cek availability di Supabase */
 export const updateBooking = (bookingId, payload) =>
   supabase
     .rpc("update_booking", {
       p_booking_id: bookingId,
       p: payload,
     })
+    .then(throwOn);
+
+/*
+ * BARU:
+ * Menyimpan informasi Ambil di Toko / Paket Kiriman.
+ *
+ * Tidak mengubah item booking, stok, atau availability.
+ */
+export const updateBookingShipping = (bookingId, payload) =>
+  supabase
+    .from("bookings")
+    .update(payload)
+    .eq("id", bookingId)
+    .select()
+    .single()
     .then(throwOn);
 
 export const updateBookingStatus = (id, status) =>
@@ -223,7 +238,7 @@ export const checkAvailability = (
 
 /* ---------------------------- Availability ------------------------------ */
 
-// Ketersediaan semua produk aktif untuk satu rentang tanggal (1 panggilan)
+// Ketersediaan semua produk aktif untuk satu rentang tanggal
 export const catalogAvailability = (
   startDate,
   endDate
@@ -235,7 +250,7 @@ export const catalogAvailability = (
     })
     .then(throwOn);
 
-// Jadwal per unit (kalender). Server menyamarkan nama penyewa bila belum login.
+// Jadwal per unit
 export const productSchedule = (
   productId,
   startDate,
@@ -249,7 +264,7 @@ export const productSchedule = (
     })
     .then(throwOn);
 
-// Katalog publik (tanpa login): produk + kategori, tanpa data pelanggan
+// Katalog publik
 export const publicCatalog = () =>
   supabase.rpc("public_catalog").then(throwOn);
 
@@ -309,7 +324,7 @@ export const getInvoice = (id) =>
 
 /*
  * Mengambil invoice berdasarkan booking.
- * Digunakan POS ketika melanjutkan booking yang sudah ada.
+ * Digunakan POS ketika melanjutkan booking.
  */
 export const getInvoiceByBooking = (bookingId) =>
   supabase
