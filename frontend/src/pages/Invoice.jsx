@@ -615,17 +615,17 @@ export default function Invoice() {
               </div>
             </div>
 
-            {/* PERIODE SEWA */}
+            {/* JADWAL SEWA & PENGEMBALIAN */}
             {(detail.booking?.start_date ||
               detail.booking?.end_date ||
               detail.booking?.rental_date ||
-              detail.booking?.return_date) && (
+              detail.booking?.return_date ||
+              detail.booking?.pickup_method) && (
               <div className="mt-5 rounded-xl bg-[#FFF7FA] border border-[#FCE4EC] p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <CalendarDays className="h-4 w-4 text-[#E83E8C]" />
-
                   <p className="font-semibold">
-                    Periode Sewa
+                    Jadwal Sewa & Pengembalian
                   </p>
                 </div>
 
@@ -634,7 +634,6 @@ export default function Invoice() {
                     <p className="text-[10px] uppercase text-[#A18895]">
                       Tanggal Mulai
                     </p>
-
                     <p className="font-semibold mt-1">
                       {formatDate(
                         detail.booking?.start_date ||
@@ -645,10 +644,9 @@ export default function Invoice() {
 
                   <div>
                     <p className="text-[10px] uppercase text-[#A18895]">
-                      Tanggal Kembali
+                      Wajib Pengembalian
                     </p>
-
-                    <p className="font-semibold mt-1">
+                    <p className="font-semibold mt-1 text-[#B91C1C]">
                       {formatDate(
                         detail.booking?.end_date ||
                           detail.booking?.return_date
@@ -656,6 +654,92 @@ export default function Invoice() {
                     </p>
                   </div>
                 </div>
+
+                {detail.booking?.pickup_method === "SHIPPING" && (
+                  <div className="mt-4 rounded-lg border border-[#FCE4EC] bg-white p-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base">📦</span>
+                      <p className="font-semibold text-[#E83E8C]">
+                        Paket Kiriman
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                      <div>
+                        <p className="text-[10px] uppercase text-[#A18895]">
+                          Penerima
+                        </p>
+                        <p className="text-xs font-medium mt-0.5">
+                          {detail.booking?.shipping_recipient || "-"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] uppercase text-[#A18895]">
+                          WhatsApp
+                        </p>
+                        <p className="text-xs font-medium mt-0.5">
+                          {detail.booking?.shipping_phone || "-"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] uppercase text-[#A18895]">
+                          Tanggal Kirim
+                        </p>
+                        <p className="text-xs font-medium mt-0.5">
+                          {detail.booking?.shipping_date
+                            ? formatDate(detail.booking.shipping_date)
+                            : "-"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] uppercase text-[#A18895]">
+                          Wajib Kirim Kembali
+                        </p>
+                        <p className="text-xs font-semibold text-[#B91C1C] mt-0.5">
+                          {detail.booking?.return_ship_date
+                            ? formatDate(detail.booking.return_ship_date)
+                            : "-"}
+                        </p>
+                      </div>
+
+                      <div className="col-span-2">
+                        <p className="text-[10px] uppercase text-[#A18895]">
+                          Perkiraan Sampai Toko
+                        </p>
+                        <p className="text-xs font-semibold text-[#047857] mt-0.5">
+                          {detail.booking?.return_arrival_date
+                            ? formatDate(detail.booking.return_arrival_date)
+                            : "-"}
+                        </p>
+                      </div>
+
+                      {detail.booking?.shipping_address && (
+                        <div className="col-span-2">
+                          <p className="text-[10px] uppercase text-[#A18895]">
+                            Alamat Pengiriman
+                          </p>
+                          <p className="text-xs mt-0.5">
+                            {detail.booking.shipping_address}
+                          </p>
+                        </div>
+                      )}
+
+                      {detail.booking?.shipping_notes && (
+                        <div className="col-span-2">
+                          <p className="text-[10px] uppercase text-[#A18895]">
+                            Catatan Kiriman
+                          </p>
+                          <p className="text-xs mt-0.5">
+                            {detail.booking.shipping_notes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
