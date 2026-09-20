@@ -14,7 +14,13 @@ export const createCategory = (payload) =>
   supabase.from("categories").insert(payload).select().single().then(throwOn);
 
 export const updateCategory = (id, payload) =>
-  supabase.from("categories").update(payload).eq("id", id).select().single().then(throwOn);
+  supabase
+    .from("categories")
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single()
+    .then(throwOn);
 
 export const deleteCategory = (id) =>
   supabase.from("categories").delete().eq("id", id).then(throwOn);
@@ -122,11 +128,7 @@ export const updateCustomer = (id, payload) =>
     .then(throwOn);
 
 export const deleteCustomer = (id) =>
-  supabase
-    .from("customers")
-    .delete()
-    .eq("id", id)
-    .then(throwOn);
+  supabase.from("customers").delete().eq("id", id).then(throwOn);
 
 export const customerHistory = async (id) => {
   const [bookings, rentals, payments, invoices] = await Promise.all([
@@ -167,7 +169,7 @@ export const customerHistory = async (id) => {
   };
 };
 
-/* ------------------------------ Bookings -------------------------------- */
+/* -------------------------------- Bookings -------------------------------- */
 export const listBookings = () =>
   supabase
     .from("bookings")
@@ -187,6 +189,15 @@ export const getBooking = (id) =>
 
 export const createBooking = (payload) =>
   supabase.rpc("create_booking", { p: payload }).then(throwOn);
+
+/* BARU: Edit Booking + cek availability di Supabase */
+export const updateBooking = (bookingId, payload) =>
+  supabase
+    .rpc("update_booking", {
+      p_booking_id: bookingId,
+      p: payload,
+    })
+    .then(throwOn);
 
 export const updateBookingStatus = (id, status) =>
   supabase
