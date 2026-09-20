@@ -46,6 +46,7 @@ import {
   CheckCircle2,
   XCircle,
   Pencil,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -906,6 +907,178 @@ export default function Booking() {
         e.message
       );
     }
+  };
+
+  /* ------------------------------------------------------------------
+     CETAK LABEL PAKET
+  ------------------------------------------------------------------ */
+
+  const printLabelPaket = (booking) => {
+    if (booking?.pickup_method !== "SHIPPING") {
+      toast.error("Label paket hanya untuk booking Paket Kiriman");
+      return;
+    }
+
+    const printWindow = window.open(
+      "",
+      "_blank",
+      "width=700,height=900"
+    );
+
+    if (!printWindow) {
+      toast.error(
+        "Popup diblokir browser. Izinkan popup untuk mencetak."
+      );
+      return;
+    }
+
+    const esc = (value) =>
+      String(value ?? "-")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    const items = (booking.items || [])
+      .map((it) => `
+        <tr>
+          <td>${esc(it.product?.name || "-")}</td>
+          <td>${esc(it.inventory?.sku || "-")}</td>
+          <td class="qty">${esc(it.quantity || 1)}</td>
+        </tr>
+      `)
+      .join("");
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="id">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Label Paket - ${esc(booking.booking_number)}</title>
+          <style>
+            @page { size: A6 portrait; margin: 7mm; }
+            * { box-sizing: border-box; }
+            html, body {
+              margin: 0;
+              padding: 0;
+              font-family: Arial, Helvetica, sans-serif;
+              color: #241d22;
+              font-size: 10px;
+            }
+            .page { width: 100%; max-width: 105mm; margin: 0 auto; }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #e83e8c;
+              padding-bottom: 7px;
+              margin-bottom: 8px;
+            }
+            .brand { font-size: 15px; font-weight: 800; letter-spacing: .4px; }
+            .title { color: #e83e8c; font-size: 12px; font-weight: 800; margin-top: 2px; }
+            .booking { margin-top: 3px; font-family: monospace; font-size: 9px; color: #7a6a75; }
+            .shipping {
+              border: 1px solid #f2d6e2;
+              border-radius: 8px;
+              padding: 8px;
+              margin-bottom: 8px;
+            }
+            .section-title {
+              font-size: 8px;
+              text-transform: uppercase;
+              color: #a18895;
+              font-weight: 700;
+              margin-bottom: 3px;
+            }
+            .recipient { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+            .phone { font-size: 10px; font-weight: 600; }
+            .address { margin-top: 6px; line-height: 1.4; }
+            .dates {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 6px;
+              margin-top: 8px;
+            }
+            .date-box {
+              border-radius: 6px;
+              padding: 6px;
+              background: #fff7fa;
+              border: 1px solid #fce4ec;
+            }
+            .date-label { font-size: 7px; color: #a18895; text-transform: uppercase; }
+            .date-value { font-size: 10px; font-weight: 800; margin-top: 2px; }
+            .return { color: #b91c1c; }
+            .arrival { color: #047857; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th, td { padding: 5px 4px; border-bottom: 1px solid #f2d6e2; text-align: left; }
+            th { font-size: 7px; color: #a18895; text-transform: uppercase; background: #fff7fa; }
+            td { font-size: 9px; }
+            .qty { text-align: center; font-weight: 700; width: 25px; }
+            .note {
+              margin-top: 8px;
+              padding: 6px;
+              border: 1px dashed #e83e8c;
+              border-radius: 6px;
+              font-size: 8px;
+              line-height: 1.4;
+            }
+            .footer {
+              margin-top: 8px;
+              text-align: center;
+              color: #a18895;
+              font-size: 7px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="page">
+            <div class="header">
+              <div class="brand">AURORA SEWA KEBAYA</div>
+              <div class="title">📦 LABEL PAKET KIRIMAN</div>
+              <div class="booking">${esc(booking.booking_number)}</div>
+            </div>
+
+            <div class="shipping">
+              <div class="section-title">Penerima</div>
+              <div class="recipient">${esc(booking.shipping_recipient || booking.customer?.name)}</div>
+              <div class="phone">WhatsApp: ${esc(booking.shipping_phone || booking.customer?.whatsapp || booking.customer?.phone)}</div>
+              <div class="address">${esc(booking.shipping_address)}</div>
+
+              <div class="dates">
+                <div class="date-box">
+                  <div class="date-label">Tanggal Kirim</div>
+                  <div class="date-value">${esc(formatDateShort(booking.shipping_date))}</div>
+                </div>
+                <div class="date-box">
+                  <div class="date-label">Wajib Kirim Kembali</div>
+                  <div class="date-value return">${esc(formatDateShort(booking.return_ship_date || subDaysISO(booking.end_date, 3)))}</div>
+                </div>
+                <div class="date-box" style="grid-column: 1 / -1;">
+                  <div class="date-label">Perkiraan Sampai Toko</div>
+                  <div class="date-value arrival">${esc(formatDateShort(booking.return_arrival_date))}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-title">Isi Paket</div>
+            <table>
+              <thead><tr><th>Produk</th><th>Unit</th><th>Qty</th></tr></thead>
+              <tbody>${items || '<tr><td colspan="3">-</td></tr>'}</tbody>
+            </table>
+
+            ${booking.shipping_notes ? `<div class="note"><strong>Catatan:</strong> ${esc(booking.shipping_notes)}</div>` : ""}
+
+            <div class="footer">Harap cocokkan nama penerima dan nomor booking sebelum paket dikirim.</div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      setTimeout(() => printWindow.close(), 500);
+    }, 400);
   };
 
   /* ------------------------------------------------------------------
@@ -1992,7 +2165,21 @@ export default function Booking() {
               </tbody>
             </Table>
 
-            <div className="flex justify-end gap-6">
+            <div className="flex items-center justify-between gap-4 pt-2">
+
+              {detail.pickup_method === "SHIPPING" && (
+                <Btn
+                  variant="outline"
+                  className="text-[#E83E8C] border-[#F3C5D8]"
+                  onClick={() => printLabelPaket(detail)}
+                  data-testid="booking-print-package-label"
+                >
+                  <Printer className="h-4 w-4" />
+                  Cetak Label Paket
+                </Btn>
+              )}
+
+              <div className="flex justify-end gap-6 ml-auto">
 
               <span className="text-[#7A6A75]">
                 Subtotal:{" "}
@@ -2012,6 +2199,7 @@ export default function Booking() {
                 </b>
               </span>
 
+              </div>
             </div>
 
           </div>
