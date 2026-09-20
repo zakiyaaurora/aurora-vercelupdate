@@ -644,12 +644,16 @@ export default function Invoice() {
 
                   <div>
                     <p className="text-[10px] uppercase text-[#A18895]">
-                      Wajib Pengembalian
+                      {detail.booking?.pickup_method === "SHIPPING"
+                        ? "Wajib Kirim Kembali"
+                        : "Wajib Pengembalian"}
                     </p>
                     <p className="font-semibold mt-1 text-[#B91C1C]">
                       {formatDate(
-                        detail.booking?.end_date ||
-                          detail.booking?.return_date
+                        detail.booking?.pickup_method === "SHIPPING"
+                          ? detail.booking?.return_ship_date
+                          : detail.booking?.end_date ||
+                            detail.booking?.return_date
                       )}
                     </p>
                   </div>
@@ -690,17 +694,6 @@ export default function Invoice() {
                         <p className="text-xs font-medium mt-0.5">
                           {detail.booking?.shipping_date
                             ? formatDate(detail.booking.shipping_date)
-                            : "-"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] uppercase text-[#A18895]">
-                          Wajib Kirim Kembali
-                        </p>
-                        <p className="text-xs font-semibold text-[#B91C1C] mt-0.5">
-                          {detail.booking?.return_ship_date
-                            ? formatDate(detail.booking.return_ship_date)
                             : "-"}
                         </p>
                       </div>
