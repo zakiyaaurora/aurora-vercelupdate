@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAsync } from "@/lib/hooks";
 import {
   listBookings,
@@ -54,6 +55,7 @@ import { toast } from "sonner";
 ------------------------------------------------------------------ */
 
 export default function Booking() {
+  const nav = useNavigate();
   const { data, loading, error, reload } = useAsync(async () => {
     const [bookings, customers, products] = await Promise.all([
       listBookings(),
@@ -708,15 +710,26 @@ export default function Booking() {
         }
 
         toast.success(
-          "Booking berhasil dibuat"
+          "Booking berhasil dibuat — membuka POS"
         );
+
+        if (createdBookingId) {
+          sessionStorage.setItem(
+            "aurora_open_booking_id",
+            createdBookingId
+          );
+        }
 
         setModal(false);
         setForm(
           emptyForm()
         );
 
-        await reload();
+        if (createdBookingId) {
+          nav("/pos");
+        } else {
+          await reload();
+        }
         return;
       }
 
@@ -1753,6 +1766,58 @@ export default function Booking() {
                 className="grid sm:grid-cols-12 gap-2 items-end bg-[#FEFCFD] border border-[#FCE4EC] rounded-lg p-3"
                 data-testid={`booking-item-${idx}`}
               >
+
+                {(() => {
+                  const selectedProduct = products.find(
+                    (p) => p.id === it.product_id
+                  );
+
+                  if (!selectedProduct) return null;
+
+                  return (
+                    <div className="sm:col-span-12 flex items-center gap-3 rounded-xl border border-[#F8D7E3] bg-white p-2.5">
+                      <div className="h-16 w-16 rounded-lg overflow-hidden bg-[#FFF5F8] border border-[#FCE4EC] shrink-0 grid place-items-center">
+                        {selectedProduct.photo_url ? (
+                          <img
+                            src={selectedProduct.photo_url}
+                            alt={selectedProduct.name || "Produk"}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <PackageCheck className="h-6 w-6 text-[#E8B4C9]" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-xs text-[#A18895]">
+                          Produk terpilih
+                        </p>
+                        <p className="text-sm font-bold text-[#1F191E] truncate">
+                          {selectedProduct.name}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          {selectedProduct.product_code && (
+                            <span className="text-[10px] font-mono text-[#7A6A75] bg-[#FEFCFD] border border-[#F3D9E4] rounded-full px-2 py-0.5">
+                              {selectedProduct.product_code}
+                            </span>
+                          )}
+
+                          <span className="text-[10px] text-[#E83E8C] font-semibold">
+                            {formatRupiah(
+                              selectedProduct.rental_price ||
+                                it.rental_price ||
+                                0
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <Field
                   label="Produk"
