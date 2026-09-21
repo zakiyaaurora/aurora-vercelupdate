@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAsync } from "@/lib/hooks";
 import {
   listCustomers,
@@ -383,7 +383,7 @@ export default function POS() {
   };
 
   /* -------------------------- Load Existing Booking ------------------- */
-  const loadBooking = async (bookingId) => {
+  const loadBooking = useCallback(async (bookingId) => {
     setSelectedBookingId(bookingId);
     setSelectedBooking(null);
     setSelectedInvoice(null);
@@ -431,7 +431,26 @@ export default function POS() {
     } finally {
       setLoadingBooking(false);
     }
-  };
+  }, []);
+
+  /* ---------------------- Auto Open from Booking ----------------------- */
+  useEffect(() => {
+    const incomingBookingId =
+      sessionStorage.getItem(
+        "aurora_open_booking_id"
+      );
+
+    if (!incomingBookingId) {
+      return;
+    }
+
+    sessionStorage.removeItem(
+      "aurora_open_booking_id"
+    );
+
+    setMode("booking");
+    loadBooking(incomingBookingId);
+  }, [loadBooking]);
 
   /* --------------------------- Booking Payment ------------------------- */
   const payExistingBooking = async () => {
@@ -651,6 +670,9 @@ export default function POS() {
   /* -------------------------- Booking Items ---------------------------- */
   const bookingItems =
     selectedBooking?.items || [];
+
+  const getProductImage = (productId) =>
+    products.find((p) => p.id === productId)?.photo_url || "";
 
   /* ----------------------------- Reset Mode ---------------------------- */
   const switchMode = (nextMode) => {
@@ -1261,55 +1283,89 @@ export default function POS() {
                   ) : (
                     <div className="space-y-2">
                       {bookingItems.map(
-                        (item, index) => (
-                          <div
-                            key={
-                              item.id ||
-                              `${item.product_id}-${index}`
-                            }
-                            className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[#FEFCFD] border border-[#FCE4EC]"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-[#1F191E]">
-                                {item.product?.name ||
-                                  "Produk"}
-                              </p>
+                        (item, index) => {
+                          const imageUrl =
+                            item.product?.photo_url ||
+                            getProductImage(item.product_id);
 
-                              {item.product
-                                ?.product_code && (
-                                <p className="text-[11px] text-[#7A6A75]">
-                                  {
-                                    item.product
-                                      .product_code
-                                  }
+                          return (
+                            <div
+                              key={
+                                item.id ||
+                                `${item.product_id}-${index}`
+                              }
+                              className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#FEFCFD] border border-[#FCE4EC]"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="h-16 w-16 rounded-xl overflow-hidden bg-[#FFF5F8] border border-[#FCE4EC] shrink-0 grid place-items-center">
+                                  {imageUrl ? (
+                                    <img
+                                      src={imageUrl}
+                                      alt={
+                                        item.product?.name ||
+                                        "Produk"
+                                      }
+                                      className="h-full w-full object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display =
+                                          "none";
+                                      }}
+                                    />
+                                  ) : (
+                                    <PackageCheck className="h-6 w-6 text-[#E8B4C9]" />
+                                  )}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold text-[#1F191E] truncate">
+                                    {item.product?.name ||
+                                      "Produk"}
+                                  </p>
+
+                                  {item.product
+                                    ?.product_code && (
+                                    <p className="text-[11px] text-[#7A6A75] mt-0.5">
+                                      {
+                                        item.product
+                                          .product_code
+                                      }
+                                    </p>
+                                  )}
+
+                                  <p className="text-[11px] text-[#A18895] mt-1">
+                                    {formatRupiah(
+                                      item.rental_price || 0
+                                    )}{" "}
+                                    ×{" "}
+                                    {Number(
+                                      item.quantity || 0
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="text-right shrink-0">
+                                <p className="text-xs text-[#7A6A75]">
+                                  Subtotal
                                 </p>
-                              )}
-                            </div>
 
-                            <div className="text-right">
-                              <p className="text-sm font-semibold">
-                                x
-                                {
-                                  item.quantity
-                                }
-                              </p>
-
-                              <p className="text-xs text-[#E83E8C]">
-                                {formatRupiah(
-                                  item.subtotal ||
-                                    Number(
-                                      item.rental_price ||
-                                        0
-                                    ) *
+                                <p className="text-sm font-bold text-[#E83E8C]">
+                                  {formatRupiah(
+                                    item.subtotal ||
                                       Number(
-                                        item.quantity ||
+                                        item.rental_price ||
                                           0
-                                      )
-                                )}
-                              </p>
+                                      ) *
+                                        Number(
+                                          item.quantity ||
+                                            0
+                                        )
+                                  )}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        )
+                          );
+                        }
                       )}
                     </div>
                   )}
