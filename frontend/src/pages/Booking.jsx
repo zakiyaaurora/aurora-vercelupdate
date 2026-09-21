@@ -16,7 +16,6 @@ import {
   formatRupiah,
   formatDateShort,
   todayISO,
-  addDays,
 } from "@/lib/format";
 import { precheckItems, parseNotAvailable } from "@/lib/availability";
 import {
@@ -53,19 +52,6 @@ import { toast } from "sonner";
 /* ------------------------------------------------------------------
    Helpers
 ------------------------------------------------------------------ */
-
-const subDaysISO = (date, days) => {
-  if (!date) return "";
-
-  const d = new Date(`${date}T00:00:00`);
-  d.setDate(d.getDate() - days);
-
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-
-  return `${y}-${m}-${day}`;
-};
 
 export default function Booking() {
   const { data, loading, error, reload } = useAsync(async () => {
@@ -106,8 +92,8 @@ export default function Booking() {
 
   const emptyForm = () => ({
     customer_id: "",
-    start_date: todayISO(),
-    end_date: addDays(todayISO(), 2),
+    start_date: "",
+    end_date: "",
     event_date: "",
     discount: "",
     deposit: "",
@@ -155,10 +141,6 @@ export default function Booking() {
     setForm((f) => ({
       ...f,
       end_date: value,
-      return_ship_date:
-        f.pickup_method === "SHIPPING"
-          ? subDaysISO(value, 3)
-          : "",
       items: f.items.map((it) => ({
         ...it,
         _avail: null,
@@ -182,10 +164,8 @@ export default function Booking() {
             shipping_notes: "",
           }
         : {
-            return_ship_date: subDaysISO(
-              f.end_date,
-              3
-            ),
+            return_ship_date:
+              f.return_ship_date || "",
           }),
     }));
   };
@@ -348,11 +328,7 @@ export default function Booking() {
           todayISO(),
 
         end_date:
-          full.end_date ||
-          addDays(
-            todayISO(),
-            2
-          ),
+          full.end_date || "",
 
         event_date:
           full.event_date || "",
@@ -386,13 +362,8 @@ export default function Booking() {
           "",
 
         return_ship_date:
-          pickupMethod ===
-          "SHIPPING"
-            ? full.return_ship_date ||
-              subDaysISO(
-                full.end_date,
-                3
-              )
+          pickupMethod === "SHIPPING"
+            ? full.return_ship_date || ""
             : "",
 
         return_arrival_date:
@@ -482,10 +453,7 @@ export default function Booking() {
           null,
 
         return_ship_date:
-          subDaysISO(
-            form.end_date,
-            3
-          ),
+          form.return_ship_date || null,
 
         return_arrival_date:
           form.return_arrival_date ||
@@ -540,6 +508,20 @@ export default function Booking() {
         return false;
       }
 
+      if (!form.return_ship_date) {
+        toast.error(
+          "Tanggal wajib kirim kembali wajib diisi"
+        );
+        return false;
+      }
+
+      if (!form.return_arrival_date) {
+        toast.error(
+          "Estimasi sampai toko wajib diisi"
+        );
+        return false;
+      }
+
       return true;
     };
 
@@ -569,12 +551,33 @@ export default function Booking() {
 
     if (
       !form.start_date ||
-      !form.end_date ||
-      form.end_date <
-        form.start_date
+      !form.event_date ||
+      !form.end_date
     ) {
       toast.error(
-        "Tanggal kembali harus setelah tanggal mulai"
+        "Tanggal Mulai Sewa, Tanggal Pemakaian, dan Tanggal Wajib Pengembalian wajib diisi"
+      );
+      return;
+    }
+
+    if (
+      form.end_date <
+      form.start_date
+    ) {
+      toast.error(
+        "Tanggal Wajib Pengembalian harus setelah atau sama dengan Tanggal Mulai Sewa"
+      );
+      return;
+    }
+
+    if (
+      form.event_date <
+        form.start_date ||
+      form.event_date >
+        form.end_date
+    ) {
+      toast.error(
+        "Tanggal Pemakaian harus berada di antara Tanggal Mulai Sewa dan Tanggal Wajib Pengembalian"
       );
       return;
     }
@@ -1051,7 +1054,7 @@ export default function Booking() {
                 </div>
                 <div class="date-box">
                   <div class="date-label">Wajib Kirim Kembali</div>
-                  <div class="date-value return">${esc(formatDateShort(booking.return_ship_date || subDaysISO(booking.end_date, 3)))}</div>
+                  <div class="date-value return">${esc(formatDateShort(booking.return_ship_date))}</div>
                 </div>
                 <div class="date-box" style="grid-column: 1 / -1;">
                   <div class="date-label">Perkiraan Sampai Toko</div>
@@ -1165,7 +1168,7 @@ export default function Booking() {
               <tr>
                 <Th>No.</Th>
                 <Th>Pelanggan</Th>
-                <Th>Periode</Th>
+                <Th>Periode Sewa</Th>
                 <Th>Total</Th>
                 <Th>Status</Th>
                 <Th className="text-right">
@@ -1393,7 +1396,7 @@ export default function Booking() {
           </Field>
 
           <Field
-            label="Tgl Mulai"
+            label="Tanggal Mulai Sewa"
             required
           >
             <TextInput
@@ -1421,7 +1424,27 @@ export default function Booking() {
           </Field>
 
           <Field
-            label="Tgl Kembali"
+            label="Tanggal Pemakaian"
+            required
+          >
+            <TextInput
+              type="date"
+              value={
+                form.event_date
+              }
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  event_date:
+                    e.target.value,
+                }))
+              }
+              data-testid="booking-usage-date"
+            />
+          </Field>
+
+          <Field
+            label="Tanggal Wajib Pengembalian"
             required
           >
             <TextInput
@@ -1576,22 +1599,25 @@ export default function Booking() {
 
                 <Field
                   label="Wajib Kirim Kembali"
+                  required
                 >
                   <TextInput
                     type="date"
                     value={
-                      subDaysISO(
-                        form.end_date,
-                        3
-                      )
+                      form.return_ship_date
                     }
-                    readOnly
-                    className="bg-[#F9F5F7]"
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        return_ship_date:
+                          e.target.value,
+                      })
+                    }
                   />
 
                   <p className="text-[11px] text-[#7A6A75] mt-1">
-                    Otomatis H-3 dari tanggal
-                    kembali.
+                    Diisi manual sesuai kesepakatan
+                    pengembalian paket.
                   </p>
                 </Field>
 
@@ -1671,19 +1697,16 @@ export default function Booking() {
                   kembali paket paling lambat{" "}
                   <b>
                     {formatDateShort(
-                      subDaysISO(
-                        form.end_date,
-                        3
-                      )
+                      form.return_ship_date
                     )}
                   </b>
                   .
                 </p>
 
                 <p className="text-xs text-[#7A6A75] mt-1">
-                  Tanggal ini dihitung otomatis
-                  3 hari sebelum tanggal
-                  pengembalian Booking.
+                  Semua tanggal pengiriman diisi
+                  manual oleh admin sesuai
+                  kesepakatan dan estimasi paket.
                 </p>
 
               </div>
@@ -2023,6 +2046,15 @@ export default function Booking() {
 
               <p>
                 <span className="text-[#7A6A75]">
+                  Tanggal Pemakaian:
+                </span>{" "}
+                {formatDateShort(
+                  detail.event_date
+                )}
+              </p>
+
+              <p>
+                <span className="text-[#7A6A75]">
                   Wajib Pengembalian:
                 </span>{" "}
                 {formatDateShort(
@@ -2080,11 +2112,7 @@ export default function Booking() {
                       Wajib Kirim Kembali:
                     </span>{" "}
                     {formatDateShort(
-                      detail.return_ship_date ||
-                        subDaysISO(
-                          detail.end_date,
-                          3
-                        )
+                      detail.return_ship_date
                     )}
                   </p>
 
