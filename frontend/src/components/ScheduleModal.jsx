@@ -26,8 +26,13 @@ const DAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
 /**
  * Modal "Lihat Jadwal" — kalender bulanan + jadwal per unit/SKU.
- * Data berasal dari RPC product_schedule (nama penyewa otomatis disamarkan
- * oleh server bila pemanggil belum login).
+ *
+ * Status kalender:
+ * 🟢 Tersedia
+ * 🟡 Sedang dicuci
+ * 🔴 Sedang disewa / dipesan
+ *
+ * Data berasal dari RPC product_schedule.
  */
 export default function ScheduleModal({
   product,
@@ -104,12 +109,45 @@ export default function ScheduleModal({
   }, [open, product?.id, startDate, endDate]);
 
   const units = useMemo(() => data?.units || [], [data]);
+
   const total = units.length;
+
   const weeks = useMemo(
     () => buildMonthGrid(year, month),
     [year, month]
   );
+
   const internal = Boolean(data?.internal);
+
+  /**
+   * Menghitung jumlah unit yang sedang CUCI
+   * pada tanggal tertentu.
+   */
+  const cuciUnitsOn = (items, iso) =>
+    items.filter((u) =>
+      (u.occupancies || []).some(
+        (o) =>
+          o.kind === "CUCI" &&
+          inRange(iso, o.start_date, o.end_date)
+      )
+    ).length;
+
+  /**
+   * Menghitung jumlah unit yang sedang:
+   * - BOOKING
+   * - RENTAL
+   *
+   * CUCI sengaja tidak dihitung di sini agar
+   * kalender bisa membedakan warna CUCI dan sewa.
+   */
+  const rentalOrBookingUnitsOn = (items, iso) =>
+    items.filter((u) =>
+      (u.occupancies || []).some(
+        (o) =>
+          o.kind !== "CUCI" &&
+          inRange(iso, o.start_date, o.end_date)
+      )
+    ).length;
 
   const prevMonth = () => {
     if (month === 0) {
@@ -168,7 +206,11 @@ export default function ScheduleModal({
       }
     >
       <div data-testid="schedule-modal">
-        {/* Ringkasan rentang tanggal yang dipilih */}
+
+        {/* =========================================================
+            RINGKASAN RENTANG TANGGAL
+        ========================================================== */}
+
         {startDate && endDate && (
           <div
             className={cn(
@@ -179,13 +221,16 @@ export default function ScheduleModal({
           >
             <p className="text-sm">
               <span className="font-semibold">
-                {formatDateShort(startDate)} – {formatDateShort(endDate)}
+                {formatDateShort(startDate)} –{" "}
+                {formatDateShort(endDate)}
               </span>
 
               <span className="mx-2">·</span>
 
               <span data-testid="schedule-range-availability">
-                {rangeAvail ? availabilityText(rangeAvail) : "Menghitung…"}
+                {rangeAvail
+                  ? availabilityText(rangeAvail)
+                  : "Menghitung…"}
               </span>
             </p>
 
@@ -194,6 +239,10 @@ export default function ScheduleModal({
             </span>
           </div>
         )}
+
+        {/* =========================================================
+            PUBLIC NOTICE
+        ========================================================== */}
 
         {!internal && (
           <p
@@ -206,9 +255,15 @@ export default function ScheduleModal({
         )}
 
         <div className="grid lg:grid-cols-12 gap-5">
-          {/* Kalender */}
+
+          {/* =======================================================
+              KALENDER
+          ======================================================== */}
+
           <div className="lg:col-span-7">
+
             <div className="flex items-center justify-between mb-3">
+
               <button
                 onClick={prevMonth}
                 className="h-8 w-8 rounded-lg grid place-items-center text-[#E83E8C] hover:bg-[#FFF5F8]"
@@ -231,6 +286,7 @@ export default function ScheduleModal({
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
+
             </div>
 
             {loading && !data ? (
@@ -238,8 +294,18 @@ export default function ScheduleModal({
             ) : error ? (
               <ErrorState error={error} />
             ) : (
-              <div className={cn("transition-opacity", loading && "opacity-60")}>
+
+              <div
+                className={cn(
+                  "transition-opacity",
+                  loading && "opacity-60"
+                )}
+              >
+
+                {/* HEADER HARI */}
+
                 <div className="grid grid-cols-7 gap-1 mb-1">
+
                   {DAYS.map((d) => (
                     <div
                       key={d}
@@ -248,24 +314,55 @@ export default function ScheduleModal({
                       {d}
                     </div>
                   ))}
+
                 </div>
+
+                {/* =================================================
+                    GRID KALENDER
+                ================================================== */}
 
                 <div
                   className="grid grid-cols-7 gap-1"
                   data-testid="schedule-calendar"
                 >
+
                   {weeks.flat().map((c) => {
+
                     const busy = c.inMonth
                       ? busyUnitsOn(units, c.iso)
                       : 0;
 
-                    const full = total > 0 && busy >= total;
-                    const partial = busy > 0 && !full;
+                    const cuciBusy = c.inMonth
+                      ? cuciUnitsOn(units, c.iso)
+                      : 0;
+
+                    const rentalBusy = c.inMonth
+                      ? rentalOrBookingUnitsOn(units, c.iso)
+                      : 0;
+
                     const selected = inRange(
                       c.iso,
                       startDate,
                       endDate
                     );
+
+                    /*
+                     * Jika ada rental / booking:
+                     * MERAH
+                     *
+                     * Jika tidak ada rental / booking tetapi
+                     * ada CUCI:
+                     * KUNING
+                     *
+                     * Jika tidak ada busy:
+                     * HIJAU
+                     */
+                    const isCuciDay =
+                      cuciBusy > 0 &&
+                      rentalBusy === 0;
+
+                    const isRentalDay =
+                      rentalBusy > 0;
 
                     return (
                       <button
@@ -283,29 +380,58 @@ export default function ScheduleModal({
                             : ""
                         }
                         data-testid={
-                          c.inMonth ? `cal-day-${c.iso}` : undefined
+                          c.inMonth
+                            ? `cal-day-${c.iso}`
+                            : undefined
                         }
-                        data-busy={c.inMonth ? busy : undefined}
+                        data-busy={
+                          c.inMonth ? busy : undefined
+                        }
                         className={cn(
                           "relative aspect-square rounded-lg border text-xs flex flex-col items-center justify-center transition-all",
+
+                          /*
+                           * Tanggal di luar bulan
+                           */
                           !c.inMonth &&
                             "opacity-30 border-transparent",
+
+                          /*
+                           * HIJAU = TERSEDIA
+                           */
                           c.inMonth &&
                             !busy &&
                             "bg-[#ECFDF5] border-[#A7F3D0] text-[#047857]",
+
+                          /*
+                           * KUNING = SEDANG CUCI
+                           */
                           c.inMonth &&
-                            partial &&
+                            isCuciDay &&
                             "bg-[#FEF3C7] border-[#FDE68A] text-[#B45309]",
+
+                          /*
+                           * MERAH = DISEWA / DIPESAN
+                           */
                           c.inMonth &&
-                            full &&
+                            isRentalDay &&
                             "bg-[#FEF2F2] border-[#FECACA] text-[#B91C1C]",
+
+                          /*
+                           * TANGGAL DIPILIH
+                           */
                           selected &&
                             c.inMonth &&
                             "ring-2 ring-[#E83E8C] ring-offset-1",
+
+                          /*
+                           * FOCUS DAY
+                           */
                           focusDay === c.iso &&
                             "outline outline-2 outline-[#1F191E]"
                         )}
                       >
+
                         <span className="font-semibold">
                           {c.day}
                         </span>
@@ -315,25 +441,32 @@ export default function ScheduleModal({
                             {total - busy}/{total}
                           </span>
                         )}
+
                       </button>
                     );
                   })}
+
                 </div>
 
+                {/* =================================================
+                    LEGEND
+                ================================================== */}
+
                 <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-[#7A6A75]">
+
                   <Legend
                     cls="bg-[#ECFDF5] border-[#A7F3D0]"
                     label="Tersedia"
                   />
 
                   <Legend
-                    cls="bg-[#FEF3C7] border-[#FDE68A]"
-                    label="Sebagian terpakai"
+                    cls="bg-[#FEF2F2] border-[#FECACA]"
+                    label="Sedang disewa / dipesan"
                   />
 
                   <Legend
-                    cls="bg-[#FEF2F2] border-[#FECACA]"
-                    label="Penuh"
+                    cls="bg-[#FEF3C7] border-[#FDE68A]"
+                    label="Sedang dicuci"
                   />
 
                   <Legend
@@ -344,14 +477,22 @@ export default function ScheduleModal({
                   <span className="ml-auto">
                     Angka = unit tersedia / total
                   </span>
+
                 </div>
+
               </div>
             )}
+
           </div>
 
-          {/* Jadwal per unit */}
+          {/* =======================================================
+              JADWAL PER UNIT
+          ======================================================== */}
+
           <div className="lg:col-span-5">
+
             <div className="flex items-center justify-between mb-2">
+
               <p className="text-sm font-semibold text-[#1F191E]">
                 Jadwal per Unit ({total})
               </p>
@@ -365,12 +506,14 @@ export default function ScheduleModal({
                   {formatDateShort(focusDay)} ✕
                 </button>
               )}
+
             </div>
 
             <div
               className="space-y-2 max-h-[420px] overflow-y-auto pr-1"
               data-testid="schedule-units"
             >
+
               {listedUnits.length === 0 && (
                 <p className="text-sm text-[#7A6A75]">
                   Belum ada unit fisik untuk produk ini.
@@ -378,12 +521,17 @@ export default function ScheduleModal({
               )}
 
               {listedUnits.map((u) => (
+
                 <div
                   key={u.id}
                   className="rounded-xl border border-[#FCE4EC] bg-[#FEFCFD] p-3"
                   data-testid={`schedule-unit-${u.sku}`}
                 >
+
+                  {/* UNIT HEADER */}
+
                   <div className="flex items-center gap-2">
+
                     <span className="font-mono text-xs font-semibold text-[#1F191E]">
                       {u.sku}
                     </span>
@@ -395,37 +543,59 @@ export default function ScheduleModal({
                         · {u.location}
                       </span>
                     )}
+
                   </div>
 
+                  {/* =================================================
+                      TIDAK ADA OCCUPANCY
+                  ================================================== */}
+
                   {(u.occupancies || []).length === 0 ? (
+
                     <p className="mt-1.5 text-xs text-[#047857]">
+
                       {u.status === "MAINTENANCE"
                         ? "Sedang perawatan"
                         : focusDay
                         ? "Tersedia pada tanggal ini"
                         : "Tidak ada jadwal bulan ini — tersedia"}
+
                     </p>
+
                   ) : (
+
                     <ul className="mt-2 space-y-1.5">
-                      {u.occupancies.map((o) => {
-                        const isCuci = o.kind === "CUCI";
-                        const isRental = o.kind === "RENTAL";
+
+                      {(u.occupancies || []).map((o) => {
+
+                        const isCuci =
+                          o.kind === "CUCI";
+
+                        const isRental =
+                          o.kind === "RENTAL";
 
                         return (
+
                           <li
-                            key={`${o.kind}-${o.ref_id}`}
+                            key={`${o.kind}-${o.ref_id || "manual"}`}
                             className="text-xs"
                             data-testid={`occupancy-${o.kind}-${u.sku}`}
                           >
+
+                            {/* =================================================
+                                STATUS CUCI
+                            ================================================== */}
+
                             {isCuci ? (
-                              /* =========================
-                               * STATUS CUCI
-                               * ========================= */
+
                               <div className="rounded-lg border border-[#FDE68A] bg-[#FFFBEB] p-3">
+
                                 <div className="flex items-center gap-2">
+
                                   <span className="rounded-full border border-[#FDE68A] bg-[#FEF3C7] px-2.5 py-1 font-semibold text-[#B45309]">
                                     🧺 SEDANG DICUCI
                                   </span>
+
                                 </div>
 
                                 <p className="mt-2 font-medium text-[#4A3F47]">
@@ -433,10 +603,19 @@ export default function ScheduleModal({
                                   {formatDateShort(o.start_date)}
                                 </p>
 
+                                <p className="mt-1 font-medium text-[#4A3F47]">
+                                  Perkiraan tersedia:{" "}
+                                  {o.estimated_available_date
+                                    ? formatDateShort(
+                                        o.estimated_available_date
+                                      )
+                                    : "Belum ditentukan"}
+                                </p>
+
                                 <p className="mt-1 leading-relaxed text-[#7A6A75]">
-                                  Belum tersedia untuk disewa.
-                                  Tersedia kembali setelah proses cuci
-                                  selesai.
+                                  Unit sedang dalam proses pencucian.
+                                  Jika proses cuci selesai lebih awal,
+                                  unit dapat tersedia lebih cepat.
                                 </p>
 
                                 {internal && o.ref_number && (
@@ -444,20 +623,27 @@ export default function ScheduleModal({
                                     {o.ref_number}
                                   </p>
                                 )}
+
                               </div>
+
                             ) : (
-                              /* =========================
-                               * BOOKING / RENTAL
-                               * ========================= */
+
+                              /* =================================================
+                                 BOOKING / RENTAL
+                              ================================================== */
+
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+
                                 <span
                                   className={cn(
                                     "rounded-full border px-2 py-0.5 font-semibold",
+
                                     isRental
-                                      ? "bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]"
+                                      ? "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]"
                                       : "bg-[#F3E8FF] text-[#6D28D9] border-[#DDD6FE]"
                                   )}
                                 >
+
                                   {isRental
                                     ? "Disewa"
                                     : "Dipesan"}
@@ -465,6 +651,7 @@ export default function ScheduleModal({
                                   {internal
                                     ? ` · ${o.status}`
                                     : ""}
+
                                 </span>
 
                                 <span className="text-[#4A3F47]">
@@ -497,28 +684,49 @@ export default function ScheduleModal({
                                     Terlambat
                                   </span>
                                 )}
+
                               </div>
                             )}
+
                           </li>
+
                         );
                       })}
+
                     </ul>
                   )}
+
                 </div>
+
               ))}
+
             </div>
+
           </div>
+
         </div>
+
       </div>
     </Modal>
   );
 }
 
+/**
+ * Legend kalender
+ */
 function Legend({ cls, label }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={cn("h-3 w-3 rounded border", cls)} />
+
+      <span
+        className={cn(
+          "h-3 w-3 rounded border",
+          cls
+        )}
+      />
+
       {label}
+
     </span>
   );
 }
