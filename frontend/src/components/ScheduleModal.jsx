@@ -29,7 +29,7 @@ const DAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
  *
  * Status kalender:
  * 🟢 Tersedia
- * 🟡 Sedang dicuci
+ * 🟡 Cuci / perkiraan cuci
  * 🔴 Sedang disewa / dipesan
  *
  * Data berasal dari RPC product_schedule.
@@ -127,7 +127,7 @@ export default function ScheduleModal({
     items.filter((u) =>
       (u.occupancies || []).some(
         (o) =>
-          o.kind === "CUCI" &&
+          (o.kind === "CUCI" || o.kind === "CUCI_ESTIMATED") &&
           inRange(iso, o.start_date, o.end_date)
       )
     ).length;
@@ -137,14 +137,14 @@ export default function ScheduleModal({
    * - BOOKING
    * - RENTAL
    *
-   * CUCI sengaja tidak dihitung di sini agar
-   * kalender bisa membedakan warna CUCI dan sewa.
+   * CUCI dan CUCI_ESTIMATED sengaja tidak dihitung di sini agar
+   * kalender bisa membedakan warna cuci dan sewa.
    */
   const rentalOrBookingUnitsOn = (items, iso) =>
     items.filter((u) =>
       (u.occupancies || []).some(
         (o) =>
-          o.kind !== "CUCI" &&
+          (o.kind === "BOOKING" || o.kind === "RENTAL") &&
           inRange(iso, o.start_date, o.end_date)
       )
     ).length;
@@ -466,7 +466,7 @@ export default function ScheduleModal({
 
                   <Legend
                     cls="bg-[#FEF3C7] border-[#FDE68A]"
-                    label="Sedang dicuci"
+                    label="Cuci / perkiraan cuci"
                   />
 
                   <Legend
@@ -571,6 +571,12 @@ export default function ScheduleModal({
                         const isCuci =
                           o.kind === "CUCI";
 
+                        const isEstimatedCuci =
+                          o.kind === "CUCI_ESTIMATED";
+
+                        const isWash =
+                          isCuci || isEstimatedCuci;
+
                         const isRental =
                           o.kind === "RENTAL";
 
@@ -586,20 +592,24 @@ export default function ScheduleModal({
                                 STATUS CUCI
                             ================================================== */}
 
-                            {isCuci ? (
+                            {isWash ? (
 
                               <div className="rounded-lg border border-[#FDE68A] bg-[#FFFBEB] p-3">
 
                                 <div className="flex items-center gap-2">
 
                                   <span className="rounded-full border border-[#FDE68A] bg-[#FEF3C7] px-2.5 py-1 font-semibold text-[#B45309]">
-                                    🧺 SEDANG DICUCI
+                                    {isEstimatedCuci
+                                      ? "🧺 PERKIRAAN CUCI"
+                                      : "🧺 SEDANG DICUCI"}
                                   </span>
 
                                 </div>
 
                                 <p className="mt-2 font-medium text-[#4A3F47]">
-                                  Mulai cuci:{" "}
+                                  {isEstimatedCuci
+                                    ? "Perkiraan mulai cuci:"
+                                    : "Mulai cuci:"}{" "}
                                   {formatDateShort(o.start_date)}
                                 </p>
 
@@ -613,9 +623,9 @@ export default function ScheduleModal({
                                 </p>
 
                                 <p className="mt-1 leading-relaxed text-[#7A6A75]">
-                                  Unit sedang dalam proses pencucian.
-                                  Jika proses cuci selesai lebih awal,
-                                  unit dapat tersedia lebih cepat.
+                                  {isEstimatedCuci
+                                    ? "Proses cuci diperkirakan 1–2 hari dan dapat tersedia lebih cepat apabila proses cuci selesai lebih awal."
+                                    : "Unit sedang dalam proses pencucian. Jika proses cuci selesai lebih awal, unit dapat tersedia lebih cepat."}
                                 </p>
 
                                 {internal && o.ref_number && (
