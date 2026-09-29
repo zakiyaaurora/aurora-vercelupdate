@@ -223,6 +223,16 @@ export const updateBookingStatus = (id, status) =>
     .single()
     .then(throwOn);
 
+/* Cancel Booking melalui RPC terpusat.
+ * Tidak menghapus payment/DP; invoice dibatalkan di Supabase.
+ */
+export const cancelBooking = (bookingId) =>
+  supabase
+    .rpc("cancel_booking", {
+      p_booking_id: bookingId,
+    })
+    .then(throwOn);
+
 export const checkAvailability = (
   productId,
   startDate,
