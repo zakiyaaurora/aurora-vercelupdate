@@ -10,6 +10,7 @@ import {
   updateBooking,
   updateBookingShipping,
   updateBookingStatus,
+  cancelBooking,
   checkoutRental,
   checkAvailability,
 } from "@/lib/api";
@@ -910,6 +911,46 @@ export default function Booking() {
   };
 
   /* ------------------------------------------------------------------
+     CANCEL BOOKING
+     ------------------------------------------------------------------
+     Cancel memakai RPC khusus agar Booking + Invoice diproses
+     secara konsisten di Supabase. Payment/DP tidak dihapus.
+  ------------------------------------------------------------------ */
+
+  const cancelBookingAction = async (b) => {
+    const ok = window.confirm(
+      `Batalkan booking ${b.booking_number}?\n\nBooking akan menjadi CANCELLED dan invoice terkait akan dibatalkan. Payment/DP yang sudah tercatat tidak dihapus.`
+    );
+
+    if (!ok) return;
+
+    try {
+      await cancelBooking(b.id);
+
+      toast.success(
+        `Booking ${b.booking_number} berhasil dibatalkan`
+      );
+
+      setDetail(null);
+      await reload();
+    } catch (e) {
+      const msg = String(e?.message || "");
+
+      if (msg.includes("booking_not_found")) {
+        toast.error("Booking tidak ditemukan.");
+      } else if (msg.includes("booking_already_cancelled")) {
+        toast.error("Booking ini sudah dibatalkan.");
+      } else if (msg.includes("booking_cannot_be_cancelled:")) {
+        toast.error("Booking yang sudah berjalan/selesai tidak dapat dibatalkan.");
+      } else if (msg.includes("not_authenticated")) {
+        toast.error("Sesi login sudah berakhir. Silakan login kembali.");
+      } else {
+        toast.error(msg || "Gagal membatalkan booking");
+      }
+    }
+  };
+
+  /* ------------------------------------------------------------------
      DETAIL
   ------------------------------------------------------------------ */
 
@@ -1317,10 +1358,7 @@ export default function Booking() {
                           variant="ghost"
                           className="px-2 py-1.5 text-[#B91C1C]"
                           onClick={() =>
-                            changeStatus(
-                              b,
-                              "CANCELLED"
-                            )
+                            cancelBookingAction(b)
                           }
                         >
                           <XCircle className="h-4 w-4" />
