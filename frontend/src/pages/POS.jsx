@@ -31,7 +31,6 @@ import {
   CreditCard,
   PackageCheck,
   Receipt,
-  Search,
   User,
   Phone,
   CalendarDays,
