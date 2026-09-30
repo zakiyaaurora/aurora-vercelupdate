@@ -140,6 +140,17 @@ export default function POS() {
     );
   }, [bookings]);
 
+  const getCustomerName = useCallback(
+    (customerId) => {
+      const customer = customers.find(
+        (item) => item.id === customerId
+      );
+
+      return customer?.name || "-";
+    },
+    [customers]
+  );
+
   const filteredBookingList = useMemo(() => {
     const q = bookingSearch.trim().toLowerCase();
 
@@ -174,6 +185,7 @@ export default function POS() {
     activeBookings,
     bookingSearch,
     customers,
+    getCustomerName,
   ]);
 
   /* --------------------------- New POS Cart ---------------------------- */
@@ -694,15 +706,6 @@ export default function POS() {
         setBookingProcessing(false);
       }
     };
-
-  /* -------------------------- Customer Name ---------------------------- */
-  const getCustomerName = (customerId) => {
-    const customer = customers.find(
-      (item) => item.id === customerId
-    );
-
-    return customer?.name || "-";
-  };
 
   /* -------------------------- Booking Items ---------------------------- */
   const bookingItems =
