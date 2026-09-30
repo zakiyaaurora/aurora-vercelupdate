@@ -107,7 +107,10 @@ export default function POS() {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState(null);
 
-  const customers = data?.customers || [];
+  const customers = useMemo(
+    () => data?.customers || [],
+    [data]
+  );
   const products = useMemo(
     () => data?.products || [],
     [data]
