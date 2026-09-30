@@ -93,6 +93,7 @@ export default function POS() {
 
   /* ---------------------------- Existing Booking ---------------------- */
   const [selectedBookingId, setSelectedBookingId] = useState("");
+  const [bookingSearch, setBookingSearch] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [loadingBooking, setLoadingBooking] = useState(false);
@@ -138,6 +139,42 @@ export default function POS() {
         ].includes(b.status)
     );
   }, [bookings]);
+
+  const filteredBookingList = useMemo(() => {
+    const q = bookingSearch.trim().toLowerCase();
+
+    if (!q) return activeBookings;
+
+    return activeBookings.filter((booking) => {
+      const customerName =
+        booking.customer?.name ||
+        getCustomerName(booking.customer_id);
+
+      const bookingNumber =
+        booking.booking_number || "";
+
+      const phone =
+        booking.customer?.whatsapp ||
+        booking.customer?.phone ||
+        customers.find(
+          (c) => c.id === booking.customer_id
+        )?.whatsapp ||
+        customers.find(
+          (c) => c.id === booking.customer_id
+        )?.phone ||
+        "";
+
+      return (
+        bookingNumber.toLowerCase().includes(q) ||
+        String(customerName).toLowerCase().includes(q) ||
+        String(phone).toLowerCase().includes(q)
+      );
+    });
+  }, [
+    activeBookings,
+    bookingSearch,
+    customers,
+  ]);
 
   /* --------------------------- New POS Cart ---------------------------- */
   const addToCart = (product) => {
@@ -1091,14 +1128,30 @@ export default function POS() {
                 </button>
               </div>
 
-              {activeBookings.length === 0 ? (
+              <div className="mb-4">
+                <SearchInput
+                  value={bookingSearch}
+                  onChange={setBookingSearch}
+                  placeholder="Cari nomor booking / pelanggan / WhatsApp..."
+                />
+              </div>
+
+              {filteredBookingList.length === 0 ? (
                 <EmptyState
-                  title="Belum ada booking"
-                  subtitle="Booking aktif akan muncul di sini."
+                  title={
+                    bookingSearch
+                      ? "Booking tidak ditemukan"
+                      : "Belum ada booking"
+                  }
+                  subtitle={
+                    bookingSearch
+                      ? "Coba cari dengan nomor booking, nama pelanggan, atau WhatsApp."
+                      : "Booking aktif akan muncul di sini."
+                  }
                 />
               ) : (
                 <div className="space-y-2 max-h-[560px] overflow-y-auto">
-                  {activeBookings.map(
+                  {filteredBookingList.map(
                     (booking) => {
                       const active =
                         selectedBookingId ===
