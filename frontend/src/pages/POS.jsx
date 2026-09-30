@@ -139,6 +139,7 @@ export default function POS() {
           "CANCELLED",
           "COMPLETED",
           "RETURNED",
+          "RENTED",
         ].includes(b.status)
     );
   }, [bookings]);
