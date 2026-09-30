@@ -435,9 +435,18 @@ export default function Invoice() {
                     {formatRupiah(invoice.paid)}
                   </Td>
 
-                  <Td className="text-[#B91C1C]">
-                    {formatRupiah(
-                      invoice.remaining
+                  <Td className={invoice.status === "CANCELLED" ? "text-[#B91C1C]" : "text-[#B91C1C]"}>
+                    {invoice.status === "CANCELLED" ? (
+                      <div>
+                        <div className="font-semibold">
+                          {formatRupiah(invoice.paid)}
+                        </div>
+                        <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#B91C1C]">
+                          DP Hangus
+                        </div>
+                      </div>
+                    ) : (
+                      formatRupiah(invoice.remaining)
                     )}
                   </Td>
 
@@ -881,17 +890,30 @@ export default function Invoice() {
                         bold
                       />
 
-                      <div className="mt-2 rounded-lg bg-[#FFF5F5] px-3 py-2.5">
-                        <Line
-                          label="Sisa Pembayaran"
-                          value={formatRupiah(
-                            detail.remaining
-                          )}
-                          red
-                          bold
-                          large
-                        />
-                      </div>
+                      {detail.status === "CANCELLED" ? (
+                        <div className="mt-2 rounded-lg border border-[#FECACA] bg-[#FFF5F5] px-3 py-2.5">
+                          <Line
+                            label="DP Hangus"
+                            value={formatRupiah(detail.paid || 0)}
+                            red
+                            bold
+                            large
+                          />
+                          <p className="mt-1 text-[11px] leading-relaxed text-[#7A6A75]">
+                            Booking dibatalkan. DP yang sudah dibayarkan tidak dikembalikan dan tidak ada sisa tagihan yang perlu dibayar.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-2 rounded-lg bg-[#FFF5F5] px-3 py-2.5">
+                          <Line
+                            label="Sisa Pembayaran"
+                            value={formatRupiah(detail.remaining)}
+                            red
+                            bold
+                            large
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -909,7 +931,7 @@ export default function Invoice() {
                   : detail.status === "PARTIAL"
                   ? "Invoice telah menerima pembayaran sebagian. Sisa pembayaran masih harus dilunasi."
                   : detail.status === "CANCELLED"
-                  ? "Invoice ini dibatalkan."
+                  ? "Invoice ini dibatalkan. DP yang sudah dibayarkan dinyatakan hangus sesuai kebijakan pembatalan Aurora. Tidak ada sisa tagihan yang perlu dibayar."
                   : "Invoice belum menerima pembayaran penuh."}
               </p>
             </div>
