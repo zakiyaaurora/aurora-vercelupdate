@@ -435,14 +435,14 @@ export default function Invoice() {
                     {formatRupiah(invoice.paid)}
                   </Td>
 
-                  <Td className={invoice.status === "CANCELLED" ? "text-[#B91C1C]" : "text-[#B91C1C]"}>
+                  <Td className={invoice.status === "CANCELLED" ? "text-[#7A6A75]" : "text-[#B91C1C]"}>
                     {invoice.status === "CANCELLED" ? (
                       <div>
                         <div className="font-semibold">
-                          {formatRupiah(invoice.paid)}
+                          Rp0
                         </div>
                         <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#B91C1C]">
-                          DP Hangus
+                          DP HANGUS
                         </div>
                       </div>
                     ) : (
