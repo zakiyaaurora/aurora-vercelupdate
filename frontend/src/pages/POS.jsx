@@ -6,16 +6,10 @@ import {
   listBookings,
   getBooking,
   getInvoiceByBooking,
-  createBooking,
   checkoutRental,
   addPayment,
-  checkAvailability,
 } from "@/lib/api";
-import { formatRupiah, todayISO, addDays } from "@/lib/format";
-import {
-  precheckItems,
-  parseNotAvailable,
-} from "@/lib/availability";
+import { formatRupiah, todayISO } from "@/lib/format";
 import {
   PageHeader,
   SectionCard,
@@ -32,17 +26,16 @@ import {
 } from "@/components/form";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import {
-  ShoppingBag,
-  Plus,
-  Minus,
-  Trash2,
-  CheckCircle2,
-  CalendarSearch,
-  Receipt,
   ClipboardList,
   RefreshCw,
   CreditCard,
   PackageCheck,
+  Receipt,
+  Search,
+  User,
+  Phone,
+  CalendarDays,
+  CheckCircle2,
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -54,15 +47,12 @@ export default function POS() {
     error,
     reload,
   } = useAsync(async () => {
-    const [
-      customers,
-      products,
-      bookings,
-    ] = await Promise.all([
-      listCustomers(),
-      listProducts(),
-      listBookings(),
-    ]);
+    const [customers, products, bookings] =
+      await Promise.all([
+        listCustomers(),
+        listProducts(),
+        listBookings(),
+      ]);
 
     return {
       customers,
@@ -71,39 +61,20 @@ export default function POS() {
     };
   }, []);
 
-  const [mode, setMode] = useState("new");
-
-  /* ------------------------------ New POS ------------------------------ */
-  const [customerId, setCustomerId] = useState("");
-
-  const [range, setRange] = useState({
-    start: todayISO(),
-    end: addDays(todayISO(), 2),
-  });
-
-  const [search, setSearch] = useState("");
-  const [cart, setCart] = useState([]);
-  const [avail, setAvail] = useState({});
-
-  const [discount, setDiscount] = useState(0);
-  const [deposit, setDeposit] = useState(0);
-
-  const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState("CASH");
-
-  /* ---------------------------- Existing Booking ---------------------- */
   const [selectedBookingId, setSelectedBookingId] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  const [bookingSearch, setBookingSearch] = useState("");
+  const [bookingStatusFilter, setBookingStatusFilter] = useState("");
+
   const [loadingBooking, setLoadingBooking] = useState(false);
+  const [bookingProcessing, setBookingProcessing] = useState(false);
 
   const [bookingPayAmount, setBookingPayAmount] = useState("");
   const [bookingPayMethod, setBookingPayMethod] = useState("CASH");
+  const [bookingPayType, setBookingPayType] = useState("DP");
 
-  const [bookingProcessing, setBookingProcessing] = useState(false);
-
-  /* ------------------------------- General ----------------------------- */
-  const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState(null);
 
   const customers = data?.customers || [];
@@ -117,323 +88,159 @@ export default function POS() {
     [data]
   );
 
-  const filtered = useMemo(() => {
-    return products.filter(
-      (p) =>
-        !search ||
-        p.name
-          .toLowerCase()
-          .includes(search.toLowerCase())
-    );
-  }, [products, search]);
-
-  /* ---------------------------- Booking Filter ------------------------- */
+  /*
+   * POS sekarang hanya untuk melanjutkan Booking.
+   * Booking CANCELLED / RETURNED / COMPLETED / RENTED
+   * tidak ditawarkan sebagai booking baru untuk diproses.
+   */
   const activeBookings = useMemo(() => {
-    return bookings.filter(
-      (b) =>
-        ![
-          "CANCELLED",
-          "COMPLETED",
-          "RETURNED",
-        ].includes(b.status)
+    return bookings.filter((booking) =>
+      [
+        "PENDING",
+        "CONFIRMED",
+        "READY",
+        "PAID",
+      ].includes(booking.status)
     );
   }, [bookings]);
 
-  /* --------------------------- New POS Cart ---------------------------- */
-  const addToCart = (product) => {
-    setCart((current) => {
-      const existing = current.find(
-        (item) => item.product_id === product.id
+  const getCustomerName = useCallback(
+    (customerId) => {
+      const customer = customers.find(
+        (item) => item.id === customerId
       );
 
-      if (existing) {
-        return current.map((item) =>
-          item.product_id === product.id
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-              }
-            : item
-        );
-      }
+      return customer?.name || "-";
+    },
+    [customers]
+  );
 
-      return [
-        ...current,
-        {
-          product_id: product.id,
-          name: product.name,
-          rental_price: product.rental_price,
-          quantity: 1,
-        },
-      ];
+  const getCustomerPhone = useCallback(
+    (booking) => {
+      return (
+        booking?.customer?.whatsapp ||
+        booking?.customer?.phone ||
+        customers.find(
+          (item) => item.id === booking?.customer_id
+        )?.whatsapp ||
+        customers.find(
+          (item) => item.id === booking?.customer_id
+        )?.phone ||
+        "-"
+      );
+    },
+    [customers]
+  );
+
+  const filteredBookings = useMemo(() => {
+    const q = bookingSearch.trim().toLowerCase();
+
+    return activeBookings.filter((booking) => {
+      const customerName =
+        booking.customer?.name ||
+        getCustomerName(booking.customer_id);
+
+      const phone = getCustomerPhone(booking);
+
+      const matchesSearch =
+        !q ||
+        String(
+          booking.booking_number || ""
+        )
+          .toLowerCase()
+          .includes(q) ||
+        String(customerName || "")
+          .toLowerCase()
+          .includes(q) ||
+        String(phone || "")
+          .toLowerCase()
+          .includes(q);
+
+      const matchesStatus =
+        !bookingStatusFilter ||
+        booking.status === bookingStatusFilter;
+
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
     });
-  };
+  }, [
+    activeBookings,
+    bookingSearch,
+    bookingStatusFilter,
+    getCustomerName,
+    getCustomerPhone,
+  ]);
 
-  const setQty = (productId, delta) => {
-    setCart((current) =>
-      current.map((item) =>
-        item.product_id === productId
-          ? {
-              ...item,
-              quantity: Math.max(
-                1,
-                item.quantity + delta
-              ),
-            }
-          : item
-      )
-    );
-  };
+  const bookingItems =
+    selectedBooking?.items || [];
 
-  const removeCart = (productId) => {
-    setCart((current) =>
-      current.filter(
-        (item) => item.product_id !== productId
-      )
-    );
-  };
+  const getProductImage = (productId) =>
+    products.find(
+      (product) => product.id === productId
+    )?.photo_url || "";
 
-  const subtotal = cart.reduce(
-    (sum, item) =>
-      sum +
-      Number(item.rental_price || 0) *
-        item.quantity,
-    0
-  );
+  const loadBooking = useCallback(
+    async (bookingId) => {
+      setSelectedBookingId(bookingId);
+      setSelectedBooking(null);
+      setSelectedInvoice(null);
+      setBookingPayAmount("");
+      setBookingPayType("DP");
 
-  const total = Math.max(
-    0,
-    subtotal - Number(discount || 0)
-  );
-
-  /* ------------------------- Availability Check ------------------------ */
-  const checkAll = async () => {
-    if (!range.start || !range.end) {
-      toast.error("Tanggal sewa belum lengkap");
-      return;
-    }
-
-    if (range.end < range.start) {
-      toast.error(
-        "Tanggal kembali tidak boleh sebelum tanggal mulai"
-      );
-      return;
-    }
-
-    try {
-      const resultMap = {};
-
-      await Promise.all(
-        products.map(async (product) => {
-          resultMap[product.id] =
-            await checkAvailability(
-              product.id,
-              range.start,
-              range.end
-            );
-        })
-      );
-
-      setAvail(resultMap);
-
-      toast.success(
-        "Ketersediaan diperbarui"
-      );
-    } catch (e) {
-      toast.error(
-        e?.message ||
-          "Gagal mengecek ketersediaan"
-      );
-    }
-  };
-
-  /* ----------------------------- New Checkout ------------------------- */
-  const checkout = async () => {
-    if (!customerId) {
-      toast.error("Pilih pelanggan dulu");
-      return;
-    }
-
-    if (cart.length === 0) {
-      toast.error("Keranjang kosong");
-      return;
-    }
-
-    if (!range.start || !range.end) {
-      toast.error("Tanggal sewa belum lengkap");
-      return;
-    }
-
-    if (range.end < range.start) {
-      toast.error(
-        "Tanggal kembali tidak boleh sebelum tanggal mulai"
-      );
-      return;
-    }
-
-    setProcessing(true);
-
-    try {
-      const problems = await precheckItems(
-        cart,
-        range.start,
-        range.end,
-        products
-      );
-
-      if (problems.length > 0) {
-        problems.forEach((problem) =>
-          toast.error(problem.message)
-        );
-
-        setAvail((current) => {
-          const next = {
-            ...current,
-          };
-
-          problems.forEach((problem) => {
-            next[problem.product_id] = {
-              total: problem.total,
-              available: problem.available,
-            };
-          });
-
-          return next;
-        });
-
+      if (!bookingId) {
         return;
       }
 
-      const booking = await createBooking({
-        customer_id: customerId,
-        start_date: range.start,
-        end_date: range.end,
-        discount: Number(discount || 0),
-        deposit: Number(deposit || 0),
-        status: "CONFIRMED",
-        items: cart.map((item) => ({
-          product_id: item.product_id,
-          quantity: item.quantity,
-          rental_price: Number(
-            item.rental_price || 0
-          ),
-        })),
-      });
+      setLoadingBooking(true);
 
-      const rental = await checkoutRental(
-        booking.booking_id,
-        todayISO()
-      );
+      try {
+        const [booking, invoice] =
+          await Promise.all([
+            getBooking(bookingId),
+            getInvoiceByBooking(bookingId),
+          ]);
 
-      let payInfo = null;
+        setSelectedBooking(booking);
+        setSelectedInvoice(invoice);
 
-      if (Number(payAmount || 0) > 0) {
-        payInfo = await addPayment({
-          invoice_id: booking.invoice_id,
-          booking_id: booking.booking_id,
-          customer_id: customerId,
-          amount: Number(payAmount),
-          payment_method: payMethod,
-          payment_type:
-            Number(payAmount) >=
-            Number(booking.total || total)
-              ? "FULL"
-              : "DP",
-        });
-      }
+        if (invoice) {
+          const remaining = Math.max(
+            0,
+            Number(invoice.remaining || 0)
+          );
 
-      setResult({
-        type: "new",
-        ...booking,
-        rental_number:
-          rental?.rental_number || "-",
-        paid: payInfo?.paid || 0,
-        remaining: payInfo
-          ? payInfo.remaining
-          : Number(booking.total || total),
-      });
+          setBookingPayAmount(
+            remaining > 0
+              ? String(remaining)
+              : ""
+          );
 
-      toast.success(
-        "Transaksi berhasil!"
-      );
+          setBookingPayType(
+            remaining > 0 ? "FULL" : "FULL"
+          );
+        }
 
-      setCart([]);
-      setDiscount(0);
-      setDeposit(0);
-      setPayAmount("");
-      setCustomerId("");
-
-      await reload();
-    } catch (e) {
-      const message = String(
-        e?.message || ""
-      );
-
-      toast.error(
-        parseNotAvailable(
-          message,
-          products
-        ) ||
-          message ||
-          "Transaksi gagal"
-      );
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  /* -------------------------- Load Existing Booking ------------------- */
-  const loadBooking = useCallback(async (bookingId) => {
-    setSelectedBookingId(bookingId);
-    setSelectedBooking(null);
-    setSelectedInvoice(null);
-    setBookingPayAmount("");
-
-    if (!bookingId) {
-      return;
-    }
-
-    setLoadingBooking(true);
-
-    try {
-      const [
-        booking,
-        invoice,
-      ] = await Promise.all([
-        getBooking(bookingId),
-        getInvoiceByBooking(bookingId),
-      ]);
-
-      setSelectedBooking(booking);
-      setSelectedInvoice(invoice);
-
-      if (invoice) {
-        const remaining = Math.max(
-          0,
-          Number(invoice.remaining || 0)
+        toast.success(
+          "Booking berhasil dimuat"
         );
-
-        setBookingPayAmount(
-          remaining > 0
-            ? String(remaining)
-            : ""
+      } catch (e) {
+        toast.error(
+          e?.message ||
+            "Gagal memuat booking"
         );
+      } finally {
+        setLoadingBooking(false);
       }
+    },
+    []
+  );
 
-      toast.success(
-        "Booking berhasil dimuat"
-      );
-    } catch (e) {
-      toast.error(
-        e?.message ||
-          "Gagal memuat booking"
-      );
-    } finally {
-      setLoadingBooking(false);
-    }
-  }, []);
-
-  /* ---------------------- Auto Open from Booking ----------------------- */
+  /*
+   * Dari halaman Booking, booking baru dapat otomatis
+   * dibuka di POS melalui sessionStorage.
+   */
   useEffect(() => {
     const incomingBookingId =
       sessionStorage.getItem(
@@ -448,11 +255,15 @@ export default function POS() {
       "aurora_open_booking_id"
     );
 
-    setMode("booking");
     loadBooking(incomingBookingId);
   }, [loadBooking]);
 
-  /* --------------------------- Booking Payment ------------------------- */
+  const selectBookingFromList = async (
+    bookingId
+  ) => {
+    await loadBooking(bookingId);
+  };
+
   const payExistingBooking = async () => {
     if (!selectedBooking) {
       toast.error(
@@ -464,6 +275,26 @@ export default function POS() {
     if (!selectedInvoice) {
       toast.error(
         "Invoice booking tidak ditemukan"
+      );
+      return;
+    }
+
+    if (
+      selectedBooking.status ===
+      "CANCELLED"
+    ) {
+      toast.error(
+        "Booking sudah dibatalkan"
+      );
+      return;
+    }
+
+    if (
+      selectedInvoice.status ===
+      "CANCELLED"
+    ) {
+      toast.error(
+        "Invoice sudah dibatalkan"
       );
       return;
     }
@@ -492,25 +323,32 @@ export default function POS() {
       return;
     }
 
+    const isFull =
+      amount >= remaining;
+
     setBookingProcessing(true);
 
     try {
       const payment = await addPayment({
-        invoice_id: selectedInvoice.id,
-        booking_id: selectedBooking.id,
+        invoice_id:
+          selectedInvoice.id,
+        booking_id:
+          selectedBooking.id,
         customer_id:
           selectedBooking.customer_id,
         amount,
         payment_method:
           bookingPayMethod,
         payment_type:
-          amount >= remaining
+          isFull
             ? "FULL"
             : "DP",
       });
 
       toast.success(
-        "Pembayaran booking berhasil"
+        isFull
+          ? "Pelunasan berhasil"
+          : "DP berhasil diterima"
       );
 
       setResult({
@@ -523,22 +361,36 @@ export default function POS() {
           selectedInvoice.total,
         paid:
           payment?.paid ??
-          Number(selectedInvoice.paid || 0) +
-            amount,
+          Number(
+            selectedInvoice.paid || 0
+          ) + amount,
         remaining:
           payment?.remaining ??
           Math.max(
             0,
             remaining - amount
           ),
+        payment_type:
+          isFull ? "FULL" : "DP",
       });
 
       await reload();
 
-      const refreshedInvoice =
-        await getInvoiceByBooking(
+      const [
+        refreshedBooking,
+        refreshedInvoice,
+      ] = await Promise.all([
+        getBooking(
           selectedBooking.id
-        );
+        ),
+        getInvoiceByBooking(
+          selectedBooking.id
+        ),
+      ]);
+
+      setSelectedBooking(
+        refreshedBooking
+      );
 
       setSelectedInvoice(
         refreshedInvoice
@@ -565,12 +417,21 @@ export default function POS() {
     }
   };
 
-  /* ---------------------------- Checkout Booking ---------------------- */
   const checkoutExistingBooking =
     async () => {
       if (!selectedBooking) {
         toast.error(
           "Pilih booking terlebih dahulu"
+        );
+        return;
+      }
+
+      if (
+        selectedBooking.status ===
+        "CANCELLED"
+      ) {
+        toast.error(
+          "Booking sudah dibatalkan"
         );
         return;
       }
@@ -585,12 +446,9 @@ export default function POS() {
         return;
       }
 
-      if (
-        selectedBooking.status ===
-        "CANCELLED"
-      ) {
+      if (!selectedInvoice) {
         toast.error(
-          "Booking sudah dibatalkan"
+          "Invoice booking tidak ditemukan"
         );
         return;
       }
@@ -631,15 +489,17 @@ export default function POS() {
 
         await reload();
 
-        const refreshedBooking =
-          await getBooking(
+        const [
+          refreshedBooking,
+          refreshedInvoice,
+        ] = await Promise.all([
+          getBooking(
             selectedBooking.id
-          );
-
-        const refreshedInvoice =
-          await getInvoiceByBooking(
+          ),
+          getInvoiceByBooking(
             selectedBooking.id
-          );
+          ),
+        ]);
 
         setSelectedBooking(
           refreshedBooking
@@ -658,35 +518,14 @@ export default function POS() {
       }
     };
 
-  /* -------------------------- Customer Name ---------------------------- */
-  const getCustomerName = (customerId) => {
-    const customer = customers.find(
-      (item) => item.id === customerId
-    );
-
-    return customer?.name || "-";
+  const clearSelection = () => {
+    setSelectedBookingId("");
+    setSelectedBooking(null);
+    setSelectedInvoice(null);
+    setBookingPayAmount("");
+    setBookingPayType("DP");
   };
 
-  /* -------------------------- Booking Items ---------------------------- */
-  const bookingItems =
-    selectedBooking?.items || [];
-
-  const getProductImage = (productId) =>
-    products.find((p) => p.id === productId)?.photo_url || "";
-
-  /* ----------------------------- Reset Mode ---------------------------- */
-  const switchMode = (nextMode) => {
-    setMode(nextMode);
-
-    if (nextMode === "new") {
-      setSelectedBookingId("");
-      setSelectedBooking(null);
-      setSelectedInvoice(null);
-      setBookingPayAmount("");
-    }
-  };
-
-  /* ---------------------------- Loading/Error -------------------------- */
   if (loading) {
     return <Loading />;
   }
@@ -704,541 +543,277 @@ export default function POS() {
     <div data-testid="pos-page">
       <PageHeader
         title="POS / Kasir"
-        subtitle="Transaksi sewa cepat dan terhubung dengan Booking."
+        subtitle="Lanjutkan Booking → Pembayaran → Rental"
+        actions={
+          <Btn
+            variant="secondary"
+            onClick={reload}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Btn>
+        }
       />
 
-      {/* =========================== MODE TABS =========================== */}
-      <div className="mb-5">
-        <div className="bg-white border border-[#F8D7E3] rounded-xl p-1.5 flex flex-col sm:flex-row gap-1.5">
-          <button
-            type="button"
-            onClick={() =>
-              switchMode("new")
-            }
-            className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-              mode === "new"
-                ? "bg-[#E83E8C] text-white shadow-sm"
-                : "text-[#7A6A75] hover:bg-[#FFF5F8]"
-            }`}
-          >
-            <ShoppingBag className="h-4 w-4" />
-            Transaksi Baru
-          </button>
+      {/* ============================================================
+          BOOKING SELECTOR
+      ============================================================ */}
 
-          <button
-            type="button"
-            onClick={() =>
-              switchMode("booking")
-            }
-            className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-              mode === "booking"
-                ? "bg-[#E83E8C] text-white shadow-sm"
-                : "text-[#7A6A75] hover:bg-[#FFF5F8]"
-            }`}
-          >
-            <ClipboardList className="h-4 w-4" />
-            Lanjutkan Booking
-          </button>
-        </div>
-      </div>
-
-      {/* ================================================================= */}
-      {/* ========================== NEW POS ============================== */}
-      {/* ================================================================= */}
-      {mode === "new" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* ------------------------ Product Side ----------------------- */}
-          <div className="lg:col-span-7 space-y-4">
-            <SectionCard>
-              <div className="grid sm:grid-cols-4 gap-3 items-end">
-                <Field
-                  label="Pelanggan"
-                  className="sm:col-span-2"
-                >
-                  <NativeSelect
-                    value={customerId}
-                    onChange={(e) =>
-                      setCustomerId(
-                        e.target.value
-                      )
-                    }
-                    placeholder="Pilih pelanggan"
-                    options={customers.map(
-                      (customer) => ({
-                        value: customer.id,
-                        label: customer.name,
-                      })
-                    )}
-                    data-testid="pos-customer-select"
-                  />
-                </Field>
-
-                <Field label="Tgl Mulai">
-                  <TextInput
-                    type="date"
-                    value={range.start}
-                    onChange={(e) =>
-                      setRange({
-                        ...range,
-                        start: e.target.value,
-                      })
-                    }
-                    data-testid="pos-start-date"
-                  />
-                </Field>
-
-                <Field label="Tgl Kembali">
-                  <TextInput
-                    type="date"
-                    value={range.end}
-                    onChange={(e) =>
-                      setRange({
-                        ...range,
-                        end: e.target.value,
-                      })
-                    }
-                    data-testid="pos-end-date"
-                  />
-                </Field>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+        <div className="xl:col-span-5">
+          <SectionCard>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-[#FFF0F6] text-[#E83E8C] grid place-items-center">
+                <ClipboardList className="h-5 w-5" />
               </div>
 
-              <div className="mt-3 flex flex-col sm:flex-row gap-3">
-                <SearchInput
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Cari produk..."
-                  testid="pos-search"
-                />
-
-                <Btn
-                  variant="secondary"
-                  onClick={checkAll}
-                  data-testid="pos-check-availability"
-                >
-                  <CalendarSearch className="h-4 w-4" />
-                  Cek Ketersediaan
-                </Btn>
-              </div>
-            </SectionCard>
-
-            {/* ----------------------- Products -------------------------- */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {filtered.map((product) => {
-                const availability =
-                  avail[product.id];
-
-                const disabled =
-                  availability &&
-                  availability.available <= 0;
-
-                return (
-                  <button
-                    key={product.id}
-                    type="button"
-                    onClick={() =>
-                      addToCart(product)
-                    }
-                    disabled={disabled}
-                    data-testid={`pos-product-${product.id}`}
-                    className="text-left bg-white border border-[#F8D7E3] rounded-xl overflow-hidden hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div className="aspect-square bg-[#FFF5F8]">
-                      {product.photo_url ? (
-                        <img
-                          src={product.photo_url}
-                          alt={product.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full grid place-items-center text-[#E0A8C0] text-xs">
-                          No Foto
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-2.5">
-                      <p className="text-xs font-semibold text-[#1F191E] truncate">
-                        {product.name}
-                      </p>
-
-                      <p className="text-[#E83E8C] font-bold text-sm">
-                        {formatRupiah(
-                          product.rental_price
-                        )}
-                      </p>
-
-                      {availability && (
-                        <p
-                          className={`text-[10px] ${
-                            availability.available >
-                            0
-                              ? "text-[#047857]"
-                              : "text-[#B91C1C]"
-                          }`}
-                        >
-                          {availability.available >
-                          0
-                            ? `Tersedia ${availability.available}`
-                            : "Habis"}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ------------------------- Cart ------------------------------ */}
-          <div className="lg:col-span-5">
-            <div className="bg-white border border-[#F8D7E3] rounded-xl shadow-sm sticky top-20">
-              <div className="px-5 py-4 border-b border-[#FCE4EC] flex items-center gap-2">
-                <ShoppingBag className="h-5 w-5 text-[#E83E8C]" />
-
-                <h3 className="font-semibold text-[#1F191E]">
-                  Keranjang
+              <div className="min-w-0">
+                <h3 className="font-bold text-[#1F191E]">
+                  Pilih Booking
                 </h3>
-
-                <span className="ml-auto text-xs text-[#7A6A75]">
-                  {cart.length} item
-                </span>
-              </div>
-
-              <div className="p-5 max-h-[320px] overflow-y-auto">
-                {cart.length === 0 ? (
-                  <EmptyState
-                    title="Keranjang kosong"
-                    subtitle="Pilih produk di sebelah kiri."
-                  />
-                ) : (
-                  <div
-                    className="space-y-3"
-                    data-testid="pos-cart"
-                  >
-                    {cart.map((item) => (
-                      <div
-                        key={item.product_id}
-                        className="flex items-center gap-2"
-                        data-testid={`pos-cart-item-${item.product_id}`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-[#1F191E] truncate">
-                            {item.name}
-                          </p>
-
-                          <p className="text-xs text-[#7A6A75]">
-                            {formatRupiah(
-                              item.rental_price
-                            )}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setQty(
-                                item.product_id,
-                                -1
-                              )
-                            }
-                            className="h-6 w-6 rounded bg-[#FFF5F8] text-[#E83E8C] grid place-items-center"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </button>
-
-                          <span className="w-6 text-center text-sm font-medium">
-                            {item.quantity}
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setQty(
-                                item.product_id,
-                                1
-                              )
-                            }
-                            className="h-6 w-6 rounded bg-[#FFF5F8] text-[#E83E8C] grid place-items-center"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeCart(
-                                item.product_id
-                              )
-                            }
-                            className="h-6 w-6 rounded text-[#B91C1C] grid place-items-center"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="px-5 py-4 border-t border-[#FCE4EC] space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Diskon">
-                    <TextInput
-                      type="number"
-                      value={discount}
-                      onChange={(e) =>
-                        setDiscount(
-                          e.target.value
-                        )
-                      }
-                      data-testid="pos-discount"
-                    />
-                  </Field>
-
-                  <Field label="Deposit">
-                    <TextInput
-                      type="number"
-                      value={deposit}
-                      onChange={(e) =>
-                        setDeposit(
-                          e.target.value
-                        )
-                      }
-                    />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Bayar">
-                    <TextInput
-                      type="number"
-                      value={payAmount}
-                      onChange={(e) =>
-                        setPayAmount(
-                          e.target.value
-                        )
-                      }
-                      placeholder="0 = belum bayar"
-                      data-testid="pos-pay-amount"
-                    />
-                  </Field>
-
-                  <Field label="Metode">
-                    <NativeSelect
-                      value={payMethod}
-                      onChange={(e) =>
-                        setPayMethod(
-                          e.target.value
-                        )
-                      }
-                      options={
-                        PAYMENT_METHODS
-                      }
-                    />
-                  </Field>
-                </div>
-
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#7A6A75]">
-                    Subtotal
-                  </span>
-
-                  <span>
-                    {formatRupiah(subtotal)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between text-base font-bold">
-                  <span className="text-[#1F191E]">
-                    Total
-                  </span>
-
-                  <span className="text-[#E83E8C]">
-                    {formatRupiah(total)}
-                  </span>
-                </div>
-
-                <Btn
-                  onClick={checkout}
-                  loading={processing}
-                  className="w-full py-2.5"
-                  data-testid="pos-checkout-btn"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Proses Transaksi
-                </Btn>
+                <p className="text-xs text-[#7A6A75] mt-0.5">
+                  Pilih booking yang akan
+                  dilanjutkan ke pembayaran
+                  atau rental.
+                </p>
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* ================================================================= */}
-      {/* ======================= EXISTING BOOKING ======================== */}
-      {/* ================================================================= */}
-      {mode === "booking" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* --------------------- Booking List -------------------------- */}
-          <div className="lg:col-span-5">
-            <SectionCard>
-              <div className="flex items-center gap-2 mb-4">
-                <ClipboardList className="h-5 w-5 text-[#E83E8C]" />
+            <div className="space-y-3">
+              <SearchInput
+                value={bookingSearch}
+                onChange={setBookingSearch}
+                placeholder="Cari nomor booking / pelanggan / WhatsApp..."
+                testid="pos-booking-search"
+              />
 
-                <div>
-                  <h3 className="font-semibold text-[#1F191E]">
-                    Booking
-                  </h3>
+              <NativeSelect
+                value={
+                  bookingStatusFilter
+                }
+                onChange={(e) =>
+                  setBookingStatusFilter(
+                    e.target.value
+                  )
+                }
+                placeholder="Semua status aktif"
+                options={[
+                  "PENDING",
+                  "CONFIRMED",
+                  "READY",
+                  "PAID",
+                ]}
+              />
+            </div>
 
-                  <p className="text-xs text-[#7A6A75]">
-                    Pilih booking untuk dilanjutkan
-                  </p>
-                </div>
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-xs text-[#7A6A75]">
+                {filteredBookings.length}{" "}
+                booking tersedia
+              </p>
 
+              {bookingSearch ||
+              bookingStatusFilter ? (
                 <button
                   type="button"
-                  onClick={reload}
-                  className="ml-auto h-8 w-8 rounded-lg hover:bg-[#FFF5F8] grid place-items-center text-[#E83E8C]"
-                  title="Refresh booking"
+                  onClick={() => {
+                    setBookingSearch("");
+                    setBookingStatusFilter(
+                      ""
+                    );
+                  }}
+                  className="text-xs text-[#E83E8C] hover:underline"
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  Reset filter
                 </button>
-              </div>
+              ) : null}
+            </div>
 
-              {activeBookings.length === 0 ? (
+            {filteredBookings.length ===
+            0 ? (
+              <div className="mt-4">
                 <EmptyState
-                  title="Belum ada booking"
-                  subtitle="Booking aktif akan muncul di sini."
+                  title="Tidak ada booking"
+                  subtitle="Booking yang dapat dilanjutkan akan muncul di sini."
                 />
-              ) : (
-                <div className="space-y-2 max-h-[560px] overflow-y-auto">
-                  {activeBookings.map(
-                    (booking) => {
-                      const active =
-                        selectedBookingId ===
-                        booking.id;
-
-                      return (
-                        <button
-                          key={booking.id}
-                          type="button"
-                          onClick={() =>
-                            loadBooking(
-                              booking.id
-                            )
-                          }
-                          className={`w-full text-left p-3 rounded-xl border transition-all ${
-                            active
-                              ? "border-[#E83E8C] bg-[#FFF5F8]"
-                              : "border-[#F8D7E3] bg-white hover:bg-[#FFF9FB]"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="font-semibold text-sm text-[#1F191E]">
-                                {
-                                  booking.booking_number
-                                }
-                              </p>
-
-                              <p className="text-xs text-[#7A6A75] truncate mt-0.5">
-                                {getCustomerName(
-                                  booking.customer_id
-                                )}
-                              </p>
-                            </div>
-
-                            <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#FCE4EC] text-[#C52F73]">
-                              {booking.status}
-                            </span>
-                          </div>
-
-                          <div className="mt-2 flex justify-between text-xs">
-                            <span className="text-[#7A6A75]">
-                              {booking.start_date} —{" "}
-                              {booking.end_date}
-                            </span>
-
-                            <span className="font-semibold text-[#E83E8C]">
-                              {formatRupiah(
-                                booking.total
-                              )}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    }
-                  )}
-                </div>
-              )}
-            </SectionCard>
-          </div>
-
-          {/* -------------------- Booking Detail ------------------------- */}
-          <div className="lg:col-span-7">
-            {!selectedBooking ? (
-              <div className="bg-white border border-[#F8D7E3] rounded-xl min-h-[400px] grid place-items-center">
-                <div className="text-center p-8">
-                  <ClipboardList className="h-12 w-12 text-[#E8B4C9] mx-auto" />
-
-                  <h3 className="mt-4 font-semibold text-[#1F191E]">
-                    Pilih Booking
-                  </h3>
-
-                  <p className="mt-1 text-sm text-[#7A6A75]">
-                    Pilih booking di sebelah kiri untuk melihat detail, pembayaran, dan proses rental.
-                  </p>
-                </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* ---------------- Booking Header ---------------------- */}
-                <SectionCard>
-                  <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <ClipboardList className="h-5 w-5 text-[#E83E8C]" />
+              <div className="mt-4 space-y-2 max-h-[620px] overflow-y-auto pr-1">
+                {filteredBookings.map(
+                  (booking) => {
+                    const active =
+                      selectedBookingId ===
+                      booking.id;
 
-                        <h3 className="font-bold text-lg text-[#1F191E]">
-                          {
-                            selectedBooking.booking_number
-                          }
-                        </h3>
-                      </div>
+                    const customerName =
+                      booking.customer
+                        ?.name ||
+                      getCustomerName(
+                        booking.customer_id
+                      );
 
-                      <div className="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
+                    return (
+                      <button
+                        key={booking.id}
+                        type="button"
+                        onClick={() =>
+                          selectBookingFromList(
+                            booking.id
+                          )
+                        }
+                        className={`w-full text-left rounded-xl border p-3.5 transition-all ${
+                          active
+                            ? "border-[#E83E8C] bg-[#FFF5F8] shadow-sm"
+                            : "border-[#F8D7E3] bg-white hover:bg-[#FFF9FB] hover:border-[#F3BDD3]"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm text-[#1F191E]">
+                              {
+                                booking.booking_number
+                              }
+                            </p>
+
+                            <p className="text-sm font-medium text-[#1F191E] mt-1 truncate">
+                              {customerName}
+                            </p>
+
+                            <p className="text-[11px] text-[#7A6A75] mt-1">
+                              {booking.start_date}{" "}
+                              —{" "}
+                              {booking.end_date}
+                            </p>
+                          </div>
+
+                          <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full bg-[#FFF0F6] text-[#C52F73]">
+                            {booking.status}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-[11px] text-[#7A6A75]">
+                            {getCustomerPhone(
+                              booking
+                            )}
+                          </span>
+
+                          <span className="font-bold text-sm text-[#E83E8C]">
+                            {formatRupiah(
+                              booking.total ||
+                                0
+                            )}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+
+        {/* ============================================================
+            BOOKING DETAIL
+        ============================================================ */}
+
+        <div className="xl:col-span-7">
+          {!selectedBooking ? (
+            <div className="bg-white border border-[#F8D7E3] rounded-2xl min-h-[620px] grid place-items-center">
+              <div className="text-center p-8 max-w-md">
+                <div className="h-16 w-16 rounded-2xl bg-[#FFF0F6] text-[#E83E8C] grid place-items-center mx-auto">
+                  <ClipboardList className="h-8 w-8" />
+                </div>
+
+                <h3 className="mt-5 text-lg font-bold text-[#1F191E]">
+                  Pilih Booking untuk
+                  dilanjutkan
+                </h3>
+
+                <p className="mt-2 text-sm text-[#7A6A75] leading-relaxed">
+                  Semua transaksi di POS
+                  dimulai dari Booking.
+                  Pilih booking di sebelah
+                  kiri untuk melihat detail,
+                  menerima pembayaran, dan
+                  memproses rental.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* HEADER */}
+              <SectionCard>
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={
+                          clearSelection
+                        }
+                        className="h-8 w-8 rounded-lg border border-[#F8D7E3] grid place-items-center text-[#7A6A75] hover:bg-[#FFF5F8]"
+                        title="Kembali ke daftar booking"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </button>
+
+                      <h3 className="font-bold text-xl text-[#1F191E]">
+                        {
+                          selectedBooking.booking_number
+                        }
+                      </h3>
+
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FFF0F6] text-[#C52F73]">
+                        {
+                          selectedBooking.status
+                        }
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid sm:grid-cols-2 gap-4">
+                      <div className="flex items-start gap-2">
+                        <User className="h-4 w-4 text-[#E83E8C] mt-0.5" />
+
                         <div>
-                          <p className="text-xs text-[#7A6A75]">
+                          <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
                             Pelanggan
                           </p>
-
                           <p className="font-semibold text-[#1F191E]">
-                            {selectedBooking.customer?.name ||
+                            {selectedBooking
+                              .customer
+                              ?.name ||
                               getCustomerName(
                                 selectedBooking.customer_id
                               )}
                           </p>
                         </div>
+                      </div>
+
+                      <div className="flex items-start gap-2">
+                        <Phone className="h-4 w-4 text-[#E83E8C] mt-0.5" />
 
                         <div>
-                          <p className="text-xs text-[#7A6A75]">
-                            Status
+                          <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
+                            WhatsApp
                           </p>
-
-                          <p className="font-semibold text-[#E83E8C]">
-                            {
-                              selectedBooking.status
-                            }
+                          <p className="font-semibold text-[#1F191E]">
+                            {getCustomerPhone(
+                              selectedBooking
+                            )}
                           </p>
                         </div>
+                      </div>
+
+                      <div className="flex items-start gap-2">
+                        <CalendarDays className="h-4 w-4 text-[#E83E8C] mt-0.5" />
 
                         <div>
-                          <p className="text-xs text-[#7A6A75]">
+                          <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
                             Periode Sewa
                           </p>
-
-                          <p className="font-medium">
+                          <p className="font-semibold text-[#1F191E]">
                             {
                               selectedBooking.start_date
                             }{" "}
@@ -1248,214 +823,310 @@ export default function POS() {
                             }
                           </p>
                         </div>
+                      </div>
 
-                        <div>
-                          <p className="text-xs text-[#7A6A75]">
-                            Tanggal Booking
-                          </p>
-
-                          <p className="font-medium">
-                            {
-                              selectedBooking.booking_date
-                            }
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
+                          Tanggal Booking
+                        </p>
+                        <p className="font-semibold text-[#1F191E]">
+                          {selectedBooking.booking_date ||
+                            "-"}
+                        </p>
                       </div>
                     </div>
                   </div>
-                </SectionCard>
 
-                {/* ---------------- Booking Items ----------------------- */}
-                <SectionCard>
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="rounded-xl bg-[#FFF7FA] border border-[#FCE4EC] px-4 py-3 min-w-[180px]">
+                    <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
+                      Total Booking
+                    </p>
+                    <p className="text-2xl font-bold text-[#E83E8C] mt-1">
+                      {formatRupiah(
+                        selectedBooking.total ||
+                          0
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </SectionCard>
+
+              {/* ITEMS */}
+              <SectionCard>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
                     <PackageCheck className="h-5 w-5 text-[#E83E8C]" />
-
                     <h3 className="font-semibold text-[#1F191E]">
                       Detail Barang
                     </h3>
                   </div>
 
-                  {bookingItems.length === 0 ? (
-                    <EmptyState
-                      title="Tidak ada barang"
-                      subtitle="Booking ini tidak memiliki item."
-                    />
-                  ) : (
-                    <div className="space-y-2">
-                      {bookingItems.map(
-                        (item, index) => {
-                          const imageUrl =
-                            item.product?.photo_url ||
-                            getProductImage(item.product_id);
+                  <span className="text-xs text-[#7A6A75]">
+                    {bookingItems.length} item
+                  </span>
+                </div>
 
-                          return (
-                            <div
-                              key={
-                                item.id ||
-                                `${item.product_id}-${index}`
-                              }
-                              className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#FEFCFD] border border-[#FCE4EC]"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="h-16 w-16 rounded-xl overflow-hidden bg-[#FFF5F8] border border-[#FCE4EC] shrink-0 grid place-items-center">
-                                  {imageUrl ? (
-                                    <img
-                                      src={imageUrl}
-                                      alt={
-                                        item.product?.name ||
-                                        "Produk"
-                                      }
-                                      className="h-full w-full object-cover"
-                                      onError={(e) => {
-                                        e.currentTarget.style.display =
-                                          "none";
-                                      }}
-                                    />
-                                  ) : (
-                                    <PackageCheck className="h-6 w-6 text-[#E8B4C9]" />
-                                  )}
-                                </div>
+                {loadingBooking ? (
+                  <div className="py-8 text-center text-sm text-[#7A6A75]">
+                    Memuat detail booking...
+                  </div>
+                ) : bookingItems.length ===
+                  0 ? (
+                  <EmptyState
+                    title="Tidak ada barang"
+                    subtitle="Booking ini tidak memiliki item."
+                  />
+                ) : (
+                  <div className="space-y-2.5">
+                    {bookingItems.map(
+                      (item, index) => {
+                        const imageUrl =
+                          item.product
+                            ?.photo_url ||
+                          getProductImage(
+                            item.product_id
+                          );
 
-                                <div className="min-w-0">
-                                  <p className="text-sm font-bold text-[#1F191E] truncate">
-                                    {item.product?.name ||
-                                      "Produk"}
-                                  </p>
+                        const qty =
+                          Number(
+                            item.quantity || 0
+                          );
 
-                                  {item.product
-                                    ?.product_code && (
-                                    <p className="text-[11px] text-[#7A6A75] mt-0.5">
-                                      {
-                                        item.product
-                                          .product_code
-                                      }
-                                    </p>
-                                  )}
+                        const price =
+                          Number(
+                            item.rental_price ||
+                              0
+                          );
 
-                                  <p className="text-[11px] text-[#A18895] mt-1">
-                                    {formatRupiah(
-                                      item.rental_price || 0
-                                    )}{" "}
-                                    ×{" "}
-                                    {Number(
-                                      item.quantity || 0
-                                    )}
-                                  </p>
-                                </div>
+                        return (
+                          <div
+                            key={
+                              item.id ||
+                              `${item.product_id}-${index}`
+                            }
+                            className="flex items-center justify-between gap-3 rounded-xl border border-[#FCE4EC] bg-[#FEFCFD] p-3.5"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="h-20 w-20 rounded-xl overflow-hidden bg-[#FFF5F8] border border-[#FCE4EC] shrink-0 grid place-items-center">
+                                {imageUrl ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={
+                                      item
+                                        .product
+                                        ?.name ||
+                                      "Produk"
+                                    }
+                                    className="h-full w-full object-cover"
+                                    onError={(
+                                      e
+                                    ) => {
+                                      e.currentTarget.style.display =
+                                        "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <PackageCheck className="h-7 w-7 text-[#E8B4C9]" />
+                                )}
                               </div>
 
-                              <div className="text-right shrink-0">
-                                <p className="text-xs text-[#7A6A75]">
-                                  Subtotal
+                              <div className="min-w-0">
+                                <p className="font-bold text-[#1F191E] truncate">
+                                  {item.product
+                                    ?.name ||
+                                    "Produk"}
                                 </p>
 
-                                <p className="text-sm font-bold text-[#E83E8C]">
+                                {item.product
+                                  ?.product_code && (
+                                  <p className="text-[11px] text-[#7A6A75] mt-0.5">
+                                    Kode:{" "}
+                                    {
+                                      item
+                                        .product
+                                        .product_code
+                                    }
+                                  </p>
+                                )}
+
+                                <p className="text-xs text-[#A18895] mt-1">
                                   {formatRupiah(
-                                    item.subtotal ||
-                                      Number(
-                                        item.rental_price ||
-                                          0
-                                      ) *
-                                        Number(
-                                          item.quantity ||
-                                            0
-                                        )
-                                  )}
+                                    price
+                                  )}{" "}
+                                  × {qty}
                                 </p>
                               </div>
                             </div>
-                          );
-                        }
-                      )}
-                    </div>
-                  )}
-                </SectionCard>
 
-                {/* ---------------- Payment ----------------------------- */}
-                <SectionCard>
-                  <div className="flex items-center gap-2 mb-4">
-                    <CreditCard className="h-5 w-5 text-[#E83E8C]" />
+                            <div className="text-right shrink-0">
+                              <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
+                                Subtotal
+                              </p>
+                              <p className="font-bold text-[#E83E8C] mt-1">
+                                {formatRupiah(
+                                  item.subtotal ||
+                                    price * qty
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                    )}
+                  </div>
+                )}
+              </SectionCard>
 
+              {/* PAYMENT */}
+              <SectionCard>
+                <div className="flex items-center gap-2 mb-4">
+                  <CreditCard className="h-5 w-5 text-[#E83E8C]" />
+
+                  <div>
                     <h3 className="font-semibold text-[#1F191E]">
                       Pembayaran
                     </h3>
+                    <p className="text-xs text-[#7A6A75]">
+                      Terima DP atau pelunasan
+                      dari booking ini.
+                    </p>
                   </div>
+                </div>
 
-                  {loadingBooking ? (
-                    <div className="py-8 text-center text-sm text-[#7A6A75]">
-                      Memuat invoice...
-                    </div>
-                  ) : !selectedInvoice ? (
-                    <div className="p-4 rounded-lg bg-[#FFF5F8] border border-[#F8D7E3] text-sm text-[#7A6A75]">
-                      Invoice untuk booking ini tidak ditemukan.
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="p-3 rounded-lg bg-[#FEFCFD] border border-[#FCE4EC]">
-                          <p className="text-[11px] text-[#7A6A75]">
-                            Invoice
-                          </p>
-
-                          <p className="text-sm font-semibold mt-1">
-                            {
-                              selectedInvoice.invoice_number
-                            }
-                          </p>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-[#FEFCFD] border border-[#FCE4EC]">
-                          <p className="text-[11px] text-[#7A6A75]">
-                            Total
-                          </p>
-
-                          <p className="text-sm font-semibold mt-1">
-                            {formatRupiah(
-                              selectedInvoice.total
-                            )}
-                          </p>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-[#FEFCFD] border border-[#FCE4EC]">
-                          <p className="text-[11px] text-[#7A6A75]">
-                            Terbayar
-                          </p>
-
-                          <p className="text-sm font-semibold text-[#047857] mt-1">
-                            {formatRupiah(
-                              selectedInvoice.paid ||
-                                0
-                            )}
-                          </p>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-[#FFF5F8] border border-[#F8D7E3]">
-                          <p className="text-[11px] text-[#7A6A75]">
-                            Sisa
-                          </p>
-
-                          <p className="text-sm font-bold text-[#B91C1C] mt-1">
-                            {formatRupiah(
-                              selectedInvoice.remaining ||
-                                0
-                            )}
-                          </p>
-                        </div>
+                {loadingBooking ? (
+                  <div className="py-8 text-center text-sm text-[#7A6A75]">
+                    Memuat invoice...
+                  </div>
+                ) : !selectedInvoice ? (
+                  <div className="p-4 rounded-lg bg-[#FFF5F8] border border-[#F8D7E3] text-sm text-[#7A6A75]">
+                    Invoice untuk booking ini
+                    tidak ditemukan.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg bg-[#FEFCFD] border border-[#FCE4EC]">
+                        <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
+                          Invoice
+                        </p>
+                        <p className="text-sm font-semibold mt-1">
+                          {
+                            selectedInvoice.invoice_number
+                          }
+                        </p>
                       </div>
 
-                      {Number(
-                        selectedInvoice.remaining || 0
-                      ) > 0 && (
-                        <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="p-3 rounded-lg bg-[#FEFCFD] border border-[#FCE4EC]">
+                        <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
+                          Total
+                        </p>
+                        <p className="text-sm font-semibold mt-1">
+                          {formatRupiah(
+                            selectedInvoice.total
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-lg bg-[#ECFDF5] border border-[#D1FAE5]">
+                        <p className="text-[10px] uppercase tracking-wide text-[#047857]">
+                          Sudah Dibayar
+                        </p>
+                        <p className="text-sm font-bold text-[#047857] mt-1">
+                          {formatRupiah(
+                            selectedInvoice.paid ||
+                              0
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-lg bg-[#FFF7FA] border border-[#FCE4EC]">
+                        <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
+                          Sisa
+                        </p>
+                        <p className="text-sm font-bold text-[#B91C1C] mt-1">
+                          {formatRupiah(
+                            selectedInvoice.remaining ||
+                              0
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {selectedInvoice.status ===
+                    "CANCELLED" ? (
+                      <div className="rounded-xl border border-[#F3D9E4] bg-[#FFF7FA] p-4">
+                        <p className="font-semibold text-[#B91C1C]">
+                          Booking dibatalkan
+                        </p>
+                        <p className="text-xs text-[#7A6A75] mt-1">
+                          Invoice ini sudah
+                          dibatalkan. DP yang
+                          sudah dibayarkan
+                          mengikuti kebijakan
+                          DP hangus.
+                        </p>
+                      </div>
+                    ) : Number(
+                        selectedInvoice.remaining ||
+                          0
+                      ) > 0 ? (
+                      <div className="rounded-xl border border-[#FCE4EC] bg-[#FEFCFD] p-4">
+                        <div className="flex items-start gap-2 mb-4">
+                          <div className="h-8 w-8 rounded-lg bg-[#FFF0F6] text-[#E83E8C] grid place-items-center shrink-0">
+                            <CreditCard className="h-4 w-4" />
+                          </div>
+
+                          <div>
+                            <p className="font-semibold text-sm text-[#1F191E]">
+                              Terima Pembayaran
+                            </p>
+                            <p className="text-xs text-[#7A6A75] mt-0.5">
+                              Pilih DP jika
+                              customer membayar
+                              sebagian, atau Full
+                              jika melunasi.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid sm:grid-cols-3 gap-3">
+                          <Field label="Jenis Pembayaran">
+                            <NativeSelect
+                              value={
+                                bookingPayType
+                              }
+                              onChange={(e) =>
+                                setBookingPayType(
+                                  e.target
+                                    .value
+                                )
+                              }
+                              options={[
+                                {
+                                  value: "DP",
+                                  label:
+                                    "DP / Sebagian",
+                                },
+                                {
+                                  value: "FULL",
+                                  label:
+                                    "Pelunasan / Full",
+                                },
+                              ]}
+                            />
+                          </Field>
+
                           <Field label="Jumlah Bayar">
                             <TextInput
                               type="number"
+                              min="1"
                               value={
                                 bookingPayAmount
                               }
                               onChange={(e) =>
                                 setBookingPayAmount(
-                                  e.target.value
+                                  e.target
+                                    .value
                                 )
                               }
                               placeholder="Masukkan jumlah"
@@ -1469,7 +1140,8 @@ export default function POS() {
                               }
                               onChange={(e) =>
                                 setBookingPayMethod(
-                                  e.target.value
+                                  e.target
+                                    .value
                                 )
                               }
                               options={
@@ -1478,58 +1150,97 @@ export default function POS() {
                             />
                           </Field>
                         </div>
-                      )}
 
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        {Number(
-                          selectedInvoice.remaining ||
-                            0
-                        ) > 0 && (
-                          <Btn
-                            onClick={
-                              payExistingBooking
-                            }
-                            loading={
-                              bookingProcessing
-                            }
-                            className="flex-1"
-                          >
-                            <CreditCard className="h-4 w-4" />
-                            Terima Pembayaran
-                          </Btn>
-                        )}
+                        <div className="mt-3 rounded-lg bg-[#FFF7FA] border border-[#FCE4EC] p-3">
+                          <p className="text-xs text-[#7A6A75]">
+                            <b className="text-[#1F191E]">
+                              Info:
+                            </b>{" "}
+                            DP adalah pembayaran
+                            sebagian. Pelunasan
+                            digunakan ketika
+                            customer membayar
+                            seluruh sisa invoice.
+                          </p>
+                        </div>
 
-                        {selectedBooking.status !==
-                          "RENTED" &&
-                          selectedBooking.status !==
-                            "CANCELLED" && (
-                            <Btn
-                              variant="secondary"
-                              onClick={
-                                checkoutExistingBooking
-                              }
-                              loading={
-                                bookingProcessing
-                              }
-                              className="flex-1"
-                            >
-                              <PackageCheck className="h-4 w-4" />
-                              Proses Rental
-                            </Btn>
-                          )}
+                        <Btn
+                          onClick={
+                            payExistingBooking
+                          }
+                          loading={
+                            bookingProcessing
+                          }
+                          className="w-full mt-3 py-2.5"
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          {bookingPayType ===
+                          "FULL"
+                            ? "Terima Pelunasan"
+                            : "Terima DP"}
+                        </Btn>
                       </div>
-                    </div>
-                  )}
-                </SectionCard>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+                    ) : (
+                      <div className="rounded-xl border border-[#D1FAE5] bg-[#ECFDF5] p-4 flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-[#047857]" />
+                        <div>
+                          <p className="font-semibold text-[#047857]">
+                            Pembayaran Lunas
+                          </p>
+                          <p className="text-xs text-[#047857]">
+                            Tidak ada sisa pembayaran.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </SectionCard>
 
-      {/* ================================================================= */}
-      {/* =========================== RESULT ============================= */}
-      {/* ================================================================= */}
+              {/* RENTAL ACTION */}
+              <SectionCard>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-[#1F191E]">
+                      Proses Rental
+                    </p>
+                    <p className="text-xs text-[#7A6A75] mt-1">
+                      Setelah barang diserahkan
+                      kepada customer, proses
+                      booking menjadi rental.
+                    </p>
+                  </div>
+
+                  <Btn
+                    variant="secondary"
+                    onClick={
+                      checkoutExistingBooking
+                    }
+                    loading={
+                      bookingProcessing
+                    }
+                    disabled={
+                      selectedBooking.status ===
+                        "CANCELLED" ||
+                      selectedBooking.status ===
+                        "RENTED"
+                    }
+                    className="sm:min-w-[220px]"
+                  >
+                    <PackageCheck className="h-4 w-4" />
+                    Proses Rental
+                  </Btn>
+                </div>
+              </SectionCard>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ============================================================
+          RESULT
+      ============================================================ */}
+
       {result && (
         <div
           className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-6"
@@ -1538,7 +1249,7 @@ export default function POS() {
           }
         >
           <div
-            className="bg-white rounded-2xl p-8 max-w-sm w-full text-center"
+            className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-xl"
             onClick={(e) =>
               e.stopPropagation()
             }
@@ -1556,14 +1267,14 @@ export default function POS() {
             <h3 className="mt-4 text-lg font-bold text-[#1F191E]">
               {result.type ===
               "booking-payment"
-                ? "Pembayaran Berhasil"
-                : result.type ===
-                  "booking-checkout"
-                ? "Rental Berhasil"
-                : "Transaksi Berhasil"}
+                ? result.payment_type ===
+                  "FULL"
+                  ? "Pelunasan Berhasil"
+                  : "DP Berhasil"
+                : "Rental Berhasil"}
             </h3>
 
-            <div className="mt-4 text-sm text-left space-y-1.5 bg-[#FEFCFD] rounded-lg p-4 border border-[#FCE4EC]">
+            <div className="mt-4 text-sm text-left space-y-2 bg-[#FEFCFD] rounded-xl p-4 border border-[#FCE4EC]">
               {result.booking_number && (
                 <p className="flex justify-between gap-4">
                   <span className="text-[#7A6A75]">
