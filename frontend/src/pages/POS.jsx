@@ -746,7 +746,7 @@ export default function POS() {
 
               {/* ITEMS + PAYMENT */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-                <div className="lg:col-span-7">
+                <div className="lg:col-span-8">
                   <SectionCard className="!p-4 h-full">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -773,10 +773,10 @@ export default function POS() {
                           return (
                             <div
                               key={item.id || `${item.product_id}-${index}`}
-                              className="rounded-xl border border-[#FCE4EC] bg-[#FEFCFD] p-3"
+                              className="rounded-xl border border-[#FCE4EC] bg-[#FEFCFD] p-4"
                             >
-                              <div className="flex gap-3">
-                                <div className="h-[135px] w-[112px] rounded-xl overflow-hidden bg-[#FFF5F8] border border-[#FCE4EC] shrink-0 grid place-items-center">
+                              <div className="flex gap-4">
+                                <div className="h-[190px] w-[158px] rounded-xl overflow-hidden bg-[#FFF5F8] border border-[#FCE4EC] shrink-0 grid place-items-center">
                                   {imageUrl ? (
                                     <img
                                       src={imageUrl}
@@ -792,7 +792,7 @@ export default function POS() {
                                 </div>
                                 <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
                                   <div>
-                                    <p className="text-sm font-semibold text-[#1F191E] leading-tight">
+                                    <p className="text-base font-semibold text-[#1F191E] leading-tight">
                                       {item.product?.name || "Produk"}
                                     </p>
                                     {item.product?.product_code && (
@@ -810,7 +810,7 @@ export default function POS() {
                                     </div>
                                     <div className="text-right">
                                       <p className="text-[9px] uppercase tracking-wide text-[#A18895]">Subtotal</p>
-                                      <p className="text-sm font-bold text-[#E83E8C] mt-0.5">
+                                      <p className="text-base font-bold text-[#E83E8C] mt-0.5">
                                         {formatRupiah(itemSubtotal)}
                                       </p>
                                     </div>
@@ -825,7 +825,7 @@ export default function POS() {
                   </SectionCard>
                 </div>
 
-                <div className="lg:col-span-5">
+                <div className="lg:col-span-4">
                   <SectionCard className="!p-4 h-full">
                     <div className="flex items-center gap-2 mb-3">
                       <CreditCard className="h-4 w-4 text-[#E83E8C]" />
