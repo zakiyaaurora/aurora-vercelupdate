@@ -744,178 +744,203 @@ export default function POS() {
                 </div>
               </SectionCard>
 
-              {/* ITEMS + PAYMENT */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-                <div className="lg:col-span-8">
-                  <SectionCard className="!p-4 h-full">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <PackageCheck className="h-4 w-4 text-[#E83E8C]" />
-                        <h3 className="text-sm font-semibold text-[#1F191E]">Detail Barang</h3>
-                      </div>
-                      <span className="text-[10px] text-[#8D7A84]">{bookingItems.length} item</span>
-                    </div>
+              {/* DETAIL BARANG */}
+              <SectionCard className="!p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <PackageCheck className="h-4 w-4 text-[#E83E8C]" />
+                    <h3 className="text-sm font-semibold text-[#1F191E]">
+                      Detail Barang
+                    </h3>
+                  </div>
+                  <span className="text-[10px] text-[#8D7A84]">
+                    {bookingItems.length} item
+                  </span>
+                </div>
 
-                    {loadingBooking ? (
-                      <div className="py-8 text-center text-xs text-[#8D7A84]">Memuat detail booking...</div>
-                    ) : bookingItems.length === 0 ? (
-                      <EmptyState title="Tidak ada barang" subtitle="Booking ini tidak memiliki item." />
-                    ) : (
-                      <div className="space-y-2">
-                        {bookingItems.map((item, index) => {
-                          const imageUrl =
-                            item.product?.photo_url ||
-                            getProductImage(item.product_id);
-                          const qty = Number(item.quantity || 0);
-                          const price = Number(item.rental_price || 0);
-                          const itemSubtotal = Number(item.subtotal ?? price * qty);
+                {loadingBooking ? (
+                  <div className="py-8 text-center text-xs text-[#8D7A84]">
+                    Memuat detail booking...
+                  </div>
+                ) : bookingItems.length === 0 ? (
+                  <EmptyState
+                    title="Tidak ada barang"
+                    subtitle="Booking ini tidak memiliki item."
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {bookingItems.map((item, index) => {
+                      const imageUrl =
+                        item.product?.photo_url ||
+                        getProductImage(item.product_id);
+                      const qty = Number(item.quantity || 0);
+                      const price = Number(item.rental_price || 0);
+                      const itemSubtotal = Number(
+                        item.subtotal ?? price * qty
+                      );
 
-                          return (
-                            <div
-                              key={item.id || `${item.product_id}-${index}`}
-                              className="rounded-xl border border-[#FCE4EC] bg-[#FEFCFD] p-4"
-                            >
-                              <div className="flex gap-4">
-                                <div className="h-[190px] w-[158px] rounded-xl overflow-hidden bg-[#FFF5F8] border border-[#FCE4EC] shrink-0 grid place-items-center">
-                                  {imageUrl ? (
-                                    <img
-                                      src={imageUrl}
-                                      alt={item.product?.name || "Produk"}
-                                      className="h-full w-full object-cover"
-                                      onError={(e) => {
-                                        e.currentTarget.style.display = "none";
-                                      }}
-                                    />
-                                  ) : (
-                                    <PackageCheck className="h-6 w-6 text-[#E8B4C9]" />
-                                  )}
+                      return (
+                        <div
+                          key={item.id || `${item.product_id}-${index}`}
+                          className="rounded-xl border border-[#FCE4EC] bg-[#FEFCFD] p-4"
+                        >
+                          <div className="flex flex-col sm:flex-row gap-5">
+                            <div className="h-[220px] w-full sm:h-[220px] sm:w-[175px] rounded-xl overflow-hidden bg-white border border-[#FCE4EC] shrink-0 flex items-center justify-center">
+                              {imageUrl ? (
+                                <img
+                                  src={imageUrl}
+                                  alt={item.product?.name || "Produk"}
+                                  className="h-full w-full object-contain"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
+                              ) : (
+                                <PackageCheck className="h-8 w-8 text-[#E8B4C9]" />
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1 flex flex-col justify-between py-1">
+                              <div>
+                                <p className="text-lg font-semibold text-[#1F191E] leading-tight">
+                                  {item.product?.name || "Produk"}
+                                </p>
+
+                                {item.product?.product_code && (
+                                  <p className="text-xs text-[#8D7A84] mt-1.5">
+                                    Kode produk: {item.product.product_code}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
+                                    Harga × Qty
+                                  </p>
+                                  <p className="text-sm font-medium text-[#40353B] mt-1">
+                                    {formatRupiah(price)} × {qty}
+                                  </p>
                                 </div>
-                                <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
-                                  <div>
-                                    <p className="text-base font-semibold text-[#1F191E] leading-tight">
-                                      {item.product?.name || "Produk"}
-                                    </p>
-                                    {item.product?.product_code && (
-                                      <p className="text-[10px] text-[#8D7A84] mt-1">
-                                        Kode produk: {item.product.product_code}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="flex items-end justify-between gap-2 mt-2">
-                                    <div>
-                                      <p className="text-[10px] text-[#A18895]">Harga × Qty</p>
-                                      <p className="text-xs font-medium text-[#40353B] mt-0.5">
-                                        {formatRupiah(price)} × {qty}
-                                      </p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-[9px] uppercase tracking-wide text-[#A18895]">Subtotal</p>
-                                      <p className="text-base font-bold text-[#E83E8C] mt-0.5">
-                                        {formatRupiah(itemSubtotal)}
-                                      </p>
-                                    </div>
-                                  </div>
+
+                                <div className="sm:text-right">
+                                  <p className="text-[10px] uppercase tracking-wide text-[#A18895]">
+                                    Subtotal
+                                  </p>
+                                  <p className="text-xl font-bold text-[#E83E8C] mt-1">
+                                    {formatRupiah(itemSubtotal)}
+                                  </p>
                                 </div>
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </SectionCard>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </SectionCard>
+
+              {/* PEMBAYARAN - FULL WIDTH DI BAWAH DETAIL BARANG */}
+              <SectionCard className="!p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CreditCard className="h-4 w-4 text-[#E83E8C]" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#1F191E]">
+                      Pembayaran
+                    </h3>
+                    <p className="text-[10px] text-[#8D7A84]">
+                      Status invoice & penerimaan
+                    </p>
+                  </div>
                 </div>
 
-                <div className="lg:col-span-4">
-                  <SectionCard className="!p-4 h-full">
-                    <div className="flex items-center gap-2 mb-3">
-                      <CreditCard className="h-4 w-4 text-[#E83E8C]" />
-                      <div>
-                        <h3 className="text-sm font-semibold text-[#1F191E]">Pembayaran</h3>
-                        <p className="text-[10px] text-[#8D7A84]">Status invoice & penerimaan</p>
+                {loadingBooking ? (
+                  <div className="py-8 text-center text-xs text-[#8D7A84]">
+                    Memuat invoice...
+                  </div>
+                ) : !selectedInvoice ? (
+                  <div className="p-3 rounded-lg bg-[#FFF5F8] border border-[#F8D7E3] text-xs text-[#7A6A75]">
+                    Invoice untuk booking ini tidak ditemukan.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="p-3 rounded-lg bg-[#FEFCFD] border border-[#FCE4EC]">
+                        <p className="text-[9px] uppercase tracking-wide text-[#A18895]">Total</p>
+                        <p className="text-sm font-semibold mt-0.5">{formatRupiah(selectedTotal)}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-[#ECFDF5] border border-[#D1FAE5]">
+                        <p className="text-[9px] uppercase tracking-wide text-[#047857]">Dibayar</p>
+                        <p className="text-sm font-bold text-[#047857] mt-0.5">{formatRupiah(selectedPaid)}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-[#FFF7FA] border border-[#FCE4EC]">
+                        <p className="text-[9px] uppercase tracking-wide text-[#A18895]">Sisa Pembayaran</p>
+                        <p className="text-sm font-bold text-[#B91C1C] mt-0.5">{formatRupiah(selectedRemaining)}</p>
                       </div>
                     </div>
 
-                    {loadingBooking ? (
-                      <div className="py-8 text-center text-xs text-[#8D7A84]">Memuat invoice...</div>
-                    ) : !selectedInvoice ? (
-                      <div className="p-3 rounded-lg bg-[#FFF5F8] border border-[#F8D7E3] text-xs text-[#7A6A75]">
-                        Invoice untuk booking ini tidak ditemukan.
+                    {selectedInvoice.status === "CANCELLED" ? (
+                      <div className="rounded-lg border border-[#F3D9E4] bg-[#FFF7FA] p-3">
+                        <p className="text-xs font-semibold text-[#B91C1C]">Booking dibatalkan</p>
+                        <p className="text-[10px] text-[#7A6A75] mt-1">
+                          DP yang sudah dibayarkan mengikuti kebijakan DP hangus.
+                        </p>
                       </div>
-                    ) : (
-                      <div className="space-y-2.5">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="p-2.5 rounded-lg bg-[#FEFCFD] border border-[#FCE4EC]">
-                            <p className="text-[9px] uppercase tracking-wide text-[#A18895]">Total</p>
-                            <p className="text-xs font-semibold mt-0.5">{formatRupiah(selectedTotal)}</p>
-                          </div>
-                          <div className="p-2.5 rounded-lg bg-[#ECFDF5] border border-[#D1FAE5]">
-                            <p className="text-[9px] uppercase tracking-wide text-[#047857]">Dibayar</p>
-                            <p className="text-xs font-bold text-[#047857] mt-0.5">{formatRupiah(selectedPaid)}</p>
-                          </div>
-                          <div className="p-2.5 rounded-lg bg-[#FFF7FA] border border-[#FCE4EC] col-span-2">
-                            <p className="text-[9px] uppercase tracking-wide text-[#A18895]">Sisa Pembayaran</p>
-                            <p className="text-base font-bold text-[#B91C1C] mt-0.5">{formatRupiah(selectedRemaining)}</p>
-                          </div>
+                    ) : selectedRemaining > 0 ? (
+                      <div className="rounded-lg border border-[#FCE4EC] bg-white p-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <Field label="Jenis Pembayaran">
+                            <NativeSelect
+                              value={bookingPayType}
+                              onChange={(e) => setBookingPayType(e.target.value)}
+                              options={[
+                                { value: "DP", label: "DP / Sebagian" },
+                                { value: "FULL", label: "Pelunasan / Full" },
+                              ]}
+                            />
+                          </Field>
+
+                          <Field label="Jumlah Bayar">
+                            <TextInput
+                              type="number"
+                              min="1"
+                              value={bookingPayAmount}
+                              onChange={(e) => setBookingPayAmount(e.target.value)}
+                              placeholder="Masukkan jumlah"
+                            />
+                          </Field>
+
+                          <Field label="Metode Pembayaran">
+                            <NativeSelect
+                              value={bookingPayMethod}
+                              onChange={(e) => setBookingPayMethod(e.target.value)}
+                              options={PAYMENT_METHODS}
+                            />
+                          </Field>
                         </div>
 
-                        {selectedInvoice.status === "CANCELLED" ? (
-                          <div className="rounded-lg border border-[#F3D9E4] bg-[#FFF7FA] p-3">
-                            <p className="text-xs font-semibold text-[#B91C1C]">Booking dibatalkan</p>
-                            <p className="text-[10px] text-[#7A6A75] mt-1">DP yang sudah dibayarkan mengikuti kebijakan DP hangus.</p>
-                          </div>
-                        ) : selectedRemaining > 0 ? (
-                          <div className="rounded-lg border border-[#FCE4EC] bg-white p-3">
-                            <div className="grid grid-cols-1 gap-2">
-                              <Field label="Jenis Pembayaran">
-                                <NativeSelect
-                                  value={bookingPayType}
-                                  onChange={(e) => setBookingPayType(e.target.value)}
-                                  options={[
-                                    { value: "DP", label: "DP / Sebagian" },
-                                    { value: "FULL", label: "Pelunasan / Full" },
-                                  ]}
-                                />
-                              </Field>
-                              <Field label="Jumlah Bayar">
-                                <TextInput
-                                  type="number"
-                                  min="1"
-                                  value={bookingPayAmount}
-                                  onChange={(e) => setBookingPayAmount(e.target.value)}
-                                  placeholder="Masukkan jumlah"
-                                />
-                              </Field>
-                              <Field label="Metode Pembayaran">
-                                <NativeSelect
-                                  value={bookingPayMethod}
-                                  onChange={(e) => setBookingPayMethod(e.target.value)}
-                                  options={PAYMENT_METHODS}
-                                />
-                              </Field>
-                            </div>
-                            <Btn
-                              onClick={payExistingBooking}
-                              loading={bookingProcessing}
-                              className="w-full mt-3 py-2"
-                            >
-                              <CreditCard className="h-3.5 w-3.5" />
-                              {bookingPayType === "FULL" ? "Terima Pelunasan" : "Terima DP"}
-                            </Btn>
-                          </div>
-                        ) : (
-                          <div className="rounded-lg border border-[#D1FAE5] bg-[#ECFDF5] p-3 flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-[#047857] shrink-0" />
-                            <div>
-                              <p className="text-xs font-semibold text-[#047857]">Pembayaran Lunas</p>
-                              <p className="text-[10px] text-[#047857]">Tidak ada sisa pembayaran.</p>
-                            </div>
-                          </div>
-                        )}
+                        <Btn
+                          onClick={payExistingBooking}
+                          loading={bookingProcessing}
+                          className="w-full mt-3 py-2.5"
+                        >
+                          <CreditCard className="h-3.5 w-3.5" />
+                          {bookingPayType === "FULL" ? "Terima Pelunasan" : "Terima DP"}
+                        </Btn>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-[#D1FAE5] bg-[#ECFDF5] p-3 flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-[#047857] shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-[#047857]">Pembayaran Lunas</p>
+                          <p className="text-[10px] text-[#047857]">Tidak ada sisa pembayaran.</p>
+                        </div>
                       </div>
                     )}
-                  </SectionCard>
-                </div>
-              </div>
+                  </div>
+                )}
+              </SectionCard>
 
               {/* RENTAL ACTION */}
               <SectionCard className="!p-3.5">
