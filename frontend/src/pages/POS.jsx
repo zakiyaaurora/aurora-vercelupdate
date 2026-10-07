@@ -745,8 +745,8 @@ export default function POS() {
               </SectionCard>
 
               {/* ITEMS + PAYMENT */}
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-                <div className="lg:col-span-3">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                <div className="lg:col-span-7">
                   <SectionCard className="!p-4 h-full">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -773,10 +773,10 @@ export default function POS() {
                           return (
                             <div
                               key={item.id || `${item.product_id}-${index}`}
-                              className="rounded-lg border border-[#FCE4EC] bg-[#FEFCFD] p-2.5"
+                              className="rounded-xl border border-[#FCE4EC] bg-[#FEFCFD] p-3"
                             >
                               <div className="flex gap-3">
-                                <div className="h-[92px] w-[76px] rounded-lg overflow-hidden bg-[#FFF5F8] border border-[#FCE4EC] shrink-0 grid place-items-center">
+                                <div className="h-[135px] w-[112px] rounded-xl overflow-hidden bg-[#FFF5F8] border border-[#FCE4EC] shrink-0 grid place-items-center">
                                   {imageUrl ? (
                                     <img
                                       src={imageUrl}
@@ -825,7 +825,7 @@ export default function POS() {
                   </SectionCard>
                 </div>
 
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-5">
                   <SectionCard className="!p-4 h-full">
                     <div className="flex items-center gap-2 mb-3">
                       <CreditCard className="h-4 w-4 text-[#E83E8C]" />
