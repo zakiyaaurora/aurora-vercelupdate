@@ -520,12 +520,12 @@ export default function ScheduleModal({
                 </p>
               )}
 
-              {listedUnits.map((u) => (
+              {listedUnits.map((u, unitIndex) => (
 
                 <div
-                  key={u.id}
+                  key={u.id || u.sku || `public-unit-${unitIndex}`}
                   className="rounded-xl border border-[#FCE4EC] bg-[#FEFCFD] p-3"
-                  data-testid={`schedule-unit-${u.sku}`}
+                  data-testid={`schedule-unit-${u.sku || unitIndex}`}
                 >
 
                   {/* UNIT HEADER */}
@@ -566,7 +566,7 @@ export default function ScheduleModal({
 
                     <ul className="mt-2 space-y-1.5">
 
-                      {(u.occupancies || []).map((o) => {
+                      {(u.occupancies || []).map((o, occupancyIndex) => {
 
                         const isCuci =
                           o.kind === "CUCI";
@@ -583,7 +583,7 @@ export default function ScheduleModal({
                         return (
 
                           <li
-                            key={`${o.kind}-${o.ref_id || "manual"}`}
+                            key={`${o.kind}-${o.start_date || "na"}-${o.end_date || "na"}-${occupancyIndex}`}
                             className="text-xs"
                             data-testid={`occupancy-${o.kind}-${u.sku}`}
                           >
