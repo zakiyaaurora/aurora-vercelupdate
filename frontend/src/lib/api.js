@@ -267,7 +267,7 @@ export const productSchedule = (
   endDate
 ) =>
   supabase
-    .rpc("product_schedule", {
+.rpc("product_schedule_public", {
       p_product_id: productId,
       p_start: startDate,
       p_end: endDate,
