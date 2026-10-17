@@ -499,3 +499,11 @@ export const reportRentals = (start, end) =>
     .lte("pickup_date", end)
     .order("pickup_date")
     .then(throwOn);
+/* -------------------------- Customer Requests -------------------------- */
+
+export const submitCustomerRequest = (payload) =>
+  supabase
+    .rpc("submit_customer_request", {
+      p_data: payload,
+    })
+    .then(throwOn);
