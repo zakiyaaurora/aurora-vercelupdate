@@ -499,11 +499,36 @@ export const reportRentals = (start, end) =>
     .lte("pickup_date", end)
     .order("pickup_date")
     .then(throwOn);
+
 /* -------------------------- Customer Requests -------------------------- */
 
+// Mengirim pengajuan sewa dari formulir pelanggan.
+// Tidak membuat booking, invoice, pembayaran, atau mengubah stok.
 export const submitCustomerRequest = (payload) =>
   supabase
     .rpc("submit_customer_request", {
       p_data: payload,
+    })
+    .then(throwOn);
+
+// Mengambil daftar pengajuan untuk admin.
+export const getCustomerRequests = (status = null) =>
+  supabase
+    .rpc("admin_list_customer_requests", {
+      p_status: status || null,
+    })
+    .then(throwOn);
+
+// Menyetujui atau menolak pengajuan pelanggan.
+export const processCustomerRequest = (
+  requestId,
+  action,
+  rejectionReason = null
+) =>
+  supabase
+    .rpc("admin_process_customer_request", {
+      p_request_id: requestId,
+      p_action: action,
+      p_rejection_reason: rejectionReason,
     })
     .then(throwOn);
