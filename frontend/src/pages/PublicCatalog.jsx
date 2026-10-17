@@ -534,61 +534,70 @@ function RequestForm({ product, initialStart, initialEnd, onClose }) {
               <section>
                 <h4 className="font-semibold text-[#1F191E]">1. Pengajuan Sewa</h4>
                 <p className="mt-1">
-                  Formulir ini merupakan pengajuan sewa awal dan bukan bukti bahwa booking telah dikonfirmasi. Admin Aurora akan memeriksa pengajuan dan menghubungi pelanggan untuk konfirmasi lebih lanjut.
+                  Formulir ini merupakan pengajuan awal dan bukan bukti bahwa booking telah dikonfirmasi. Admin Aurora akan memeriksa pengajuan dan menghubungi pelanggan untuk konfirmasi lebih lanjut.
                 </p>
               </section>
               <section>
                 <h4 className="font-semibold text-[#1F191E]">2. Ketersediaan Kebaya</h4>
                 <p className="mt-1">
-                  Ketersediaan kebaya akan diperiksa oleh admin berdasarkan jadwal sewa dan kondisi barang, termasuk proses pencucian atau perawatan. Pengajuan tidak otomatis mengunci stok.
+                  Ketersediaan kebaya diperiksa oleh admin berdasarkan jadwal sewa dan kondisi barang, termasuk proses pencucian atau perawatan. Pengajuan tidak otomatis mengunci stok atau menjamin kebaya tersedia.
                 </p>
               </section>
               <section>
-                <h4 className="font-semibold text-[#1F191E]">3. Kebenaran Data</h4>
+                <h4 className="font-semibold text-[#1F191E]">3. Data dan Alamat Lengkap</h4>
                 <p className="mt-1">
-                  Pelanggan bertanggung jawab atas kebenaran nama, nomor telepon, nomor WhatsApp, alamat, pilihan kebaya, tanggal acara, dan periode sewa yang diisikan. Pastikan nomor kontak dapat dihubungi oleh admin.
+                  Pelanggan wajib mengisi data yang benar dan nomor WhatsApp yang aktif. Alamat lengkap wajib diberikan oleh semua pelanggan, termasuk pelanggan yang mengambil kebaya langsung di butik. Pastikan alamat dapat digunakan untuk keperluan komunikasi dan administrasi penyewaan.
                 </p>
               </section>
               <section>
-                <h4 className="font-semibold text-[#1F191E]">4. Harga dan Pembayaran</h4>
+                <h4 className="font-semibold text-[#1F191E]">4. Persyaratan Identitas</h4>
                 <p className="mt-1">
-                  Harga final, uang muka (DP), deposit, batas waktu pembayaran, dan metode pembayaran akan diinformasikan oleh admin sebelum booking dikonfirmasi. Pengajuan formulir tidak berarti pembayaran telah dilakukan.
+                  Pelanggan yang berdomisili di luar Kota Karawang wajib menunjukkan dua identitas kepada admin. Identitas dapat berupa KTP, SIM, dan/atau Kartu Mahasiswa (KTM), dengan total dua dokumen identitas. Admin akan memeriksa identitas secara langsung saat proses konfirmasi atau penyewaan.
                 </p>
-              </section>
-              <section>
-                <h4 className="font-semibold text-[#1F191E]">5. Periode Sewa</h4>
                 <p className="mt-1">
-                  Pelanggan wajib memastikan tanggal mulai dan akhir sewa sudah benar. Perubahan tanggal harus dikomunikasikan kepada admin dan bergantung pada ketersediaan kebaya.
+                  Foto atau salinan identitas tidak perlu diunggah melalui formulir pengajuan ini. Tunjukkan identitas langsung kepada admin sesuai arahan yang diberikan.
                 </p>
               </section>
               <section>
-                <h4 className="font-semibold text-[#1F191E]">6. Pengambilan dan Pengembalian</h4>
+                <h4 className="font-semibold text-[#1F191E]">5. Harga dan Pembayaran</h4>
                 <p className="mt-1">
-                  Metode, lokasi, dan jadwal pengambilan atau pengiriman serta pengembalian kebaya mengikuti kesepakatan dengan admin. Pelanggan wajib mengembalikan barang sesuai jadwal yang telah disepakati.
+                  Harga final, uang muka (DP), deposit, batas waktu pembayaran, dan metode pembayaran akan diinformasikan oleh admin sebelum booking dikonfirmasi. Mengirim formulir tidak berarti pembayaran telah dilakukan.
                 </p>
               </section>
               <section>
-                <h4 className="font-semibold text-[#1F191E]">7. Fitting atau Pengepasan</h4>
+                <h4 className="font-semibold text-[#1F191E]">6. Periode Sewa</h4>
+                <p className="mt-1">
+                  Pelanggan wajib memastikan tanggal mulai sewa, tanggal selesai sewa, dan tanggal acara sudah benar. Perubahan tanggal harus dikomunikasikan kepada admin dan bergantung pada ketersediaan kebaya.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">7. Pengambilan dan Pengembalian</h4>
+                <p className="mt-1">
+                  Metode, lokasi, dan jadwal pengambilan atau pengiriman serta pengembalian kebaya mengikuti kesepakatan dengan admin. Pelanggan wajib mengembalikan kebaya dan perlengkapannya sesuai jadwal yang telah disepakati.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">8. Fitting atau Pengepasan</h4>
                 <p className="mt-1">
                   Jadwal fitting langsung maupun konsultasi online harus dikonfirmasi terlebih dahulu dengan admin. Pengajuan jadwal fitting belum menjamin jadwal tersebut tersedia.
                 </p>
               </section>
               <section>
-                <h4 className="font-semibold text-[#1F191E]">8. Pembatalan dan Perubahan</h4>
+                <h4 className="font-semibold text-[#1F191E]">9. Pembatalan dan Perubahan</h4>
                 <p className="mt-1">
-                  Pelanggan yang ingin membatalkan atau mengubah pengajuan wajib menghubungi admin. Ketentuan pembatalan, pengembalian pembayaran, dan perubahan jadwal akan mengikuti kebijakan Aurora yang disampaikan sebelum transaksi disepakati.
+                  Pelanggan yang ingin membatalkan atau mengubah pengajuan wajib menghubungi admin. Ketentuan pembatalan, pengembalian pembayaran, dan perubahan jadwal akan mengikuti kebijakan Aurora yang dijelaskan sebelum transaksi disepakati.
                 </p>
               </section>
               <section>
-                <h4 className="font-semibold text-[#1F191E]">9. Kerusakan, Kehilangan, dan Keterlambatan</h4>
+                <h4 className="font-semibold text-[#1F191E]">10. Kerusakan, Kehilangan, dan Keterlambatan</h4>
                 <p className="mt-1">
                   Pelanggan wajib menjaga kebaya dan perlengkapannya selama masa sewa. Ketentuan biaya keterlambatan, kerusakan, atau kehilangan akan dijelaskan oleh admin sebelum booking dikonfirmasi.
                 </p>
               </section>
               <section>
-                <h4 className="font-semibold text-[#1F191E]">10. Persetujuan</h4>
+                <h4 className="font-semibold text-[#1F191E]">11. Persetujuan</h4>
                 <p className="mt-1">
-                  Dengan mencentang persetujuan, pelanggan menyatakan telah membaca dan memahami ketentuan pengajuan sewa ini serta bersedia mengikuti proses konfirmasi dari admin Aurora.
+                  Dengan mencentang persetujuan, pelanggan menyatakan telah membaca dan memahami syarat pengajuan sewa Aurora serta bersedia mengikuti proses konfirmasi dari admin. Booking baru dianggap dikonfirmasi setelah mendapat persetujuan admin dan memenuhi ketentuan penyewaan.
                 </p>
               </section>
             </div>
