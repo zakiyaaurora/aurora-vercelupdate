@@ -517,20 +517,97 @@ function RequestForm({ product, initialStart, initialEnd, onClose }) {
             </RequestField>
           </section>
 
-          <label className="flex items-start gap-3 rounded-xl border border-pink-100 bg-[#FFFAFC] p-4 text-sm leading-relaxed text-gray-700">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 shrink-0 accent-pink-500"
-              checked={form.terms_accepted}
-              onChange={(e) => update("terms_accepted", e.target.checked)}
-              required
-            />
-            <span>
-              Saya menyatakan data yang diisi benar dan memahami bahwa ini
-              adalah pengajuan sewa yang harus diperiksa dan dikonfirmasi
-              oleh admin Aurora sebelum menjadi booking.
-            </span>
-          </label>
+          <section className="rounded-2xl border border-pink-200 bg-[#FFFAFC] p-4 sm:p-5">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-pink-500">
+                AURORA SEWA KEBAYA
+              </p>
+              <h3 className="mt-1 text-lg font-bold text-[#1F191E]">
+                Syarat &amp; Ketentuan Pengajuan Sewa
+              </h3>
+              <p className="mt-1 text-sm text-[#7A6A75]">
+                Mohon baca ketentuan berikut sebelum mengirim pengajuan sewa.
+              </p>
+            </div>
+
+            <div className="max-h-72 space-y-4 overflow-y-auto rounded-xl border border-pink-100 bg-white p-4 text-sm leading-relaxed text-[#4A3F47]">
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">1. Pengajuan Sewa</h4>
+                <p className="mt-1">
+                  Formulir ini merupakan pengajuan sewa awal dan bukan bukti bahwa booking telah dikonfirmasi. Admin Aurora akan memeriksa pengajuan dan menghubungi pelanggan untuk konfirmasi lebih lanjut.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">2. Ketersediaan Kebaya</h4>
+                <p className="mt-1">
+                  Ketersediaan kebaya akan diperiksa oleh admin berdasarkan jadwal sewa dan kondisi barang, termasuk proses pencucian atau perawatan. Pengajuan tidak otomatis mengunci stok.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">3. Kebenaran Data</h4>
+                <p className="mt-1">
+                  Pelanggan bertanggung jawab atas kebenaran nama, nomor telepon, nomor WhatsApp, alamat, pilihan kebaya, tanggal acara, dan periode sewa yang diisikan. Pastikan nomor kontak dapat dihubungi oleh admin.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">4. Harga dan Pembayaran</h4>
+                <p className="mt-1">
+                  Harga final, uang muka (DP), deposit, batas waktu pembayaran, dan metode pembayaran akan diinformasikan oleh admin sebelum booking dikonfirmasi. Pengajuan formulir tidak berarti pembayaran telah dilakukan.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">5. Periode Sewa</h4>
+                <p className="mt-1">
+                  Pelanggan wajib memastikan tanggal mulai dan akhir sewa sudah benar. Perubahan tanggal harus dikomunikasikan kepada admin dan bergantung pada ketersediaan kebaya.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">6. Pengambilan dan Pengembalian</h4>
+                <p className="mt-1">
+                  Metode, lokasi, dan jadwal pengambilan atau pengiriman serta pengembalian kebaya mengikuti kesepakatan dengan admin. Pelanggan wajib mengembalikan barang sesuai jadwal yang telah disepakati.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">7. Fitting atau Pengepasan</h4>
+                <p className="mt-1">
+                  Jadwal fitting langsung maupun konsultasi online harus dikonfirmasi terlebih dahulu dengan admin. Pengajuan jadwal fitting belum menjamin jadwal tersebut tersedia.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">8. Pembatalan dan Perubahan</h4>
+                <p className="mt-1">
+                  Pelanggan yang ingin membatalkan atau mengubah pengajuan wajib menghubungi admin. Ketentuan pembatalan, pengembalian pembayaran, dan perubahan jadwal akan mengikuti kebijakan Aurora yang disampaikan sebelum transaksi disepakati.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">9. Kerusakan, Kehilangan, dan Keterlambatan</h4>
+                <p className="mt-1">
+                  Pelanggan wajib menjaga kebaya dan perlengkapannya selama masa sewa. Ketentuan biaya keterlambatan, kerusakan, atau kehilangan akan dijelaskan oleh admin sebelum booking dikonfirmasi.
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-[#1F191E]">10. Persetujuan</h4>
+                <p className="mt-1">
+                  Dengan mencentang persetujuan, pelanggan menyatakan telah membaca dan memahami ketentuan pengajuan sewa ini serta bersedia mengikuti proses konfirmasi dari admin Aurora.
+                </p>
+              </section>
+            </div>
+
+            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-pink-100 p-3 text-sm leading-relaxed text-[#4A3F47]">
+              <input
+                type="checkbox"
+                name="terms_accepted"
+                checked={form.terms_accepted}
+                onChange={(e) => update("terms_accepted", e.target.checked)}
+                required
+                className="mt-1 h-4 w-4 shrink-0 accent-pink-500"
+              />
+              <span>
+                Saya telah membaca, memahami, dan menyetujui Syarat &amp; Ketentuan Pengajuan Sewa Aurora.
+                <span className="ml-1 font-semibold text-pink-600">(Wajib dicentang)</span>
+              </span>
+            </label>
+          </section>
 
           <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
             <button
