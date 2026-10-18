@@ -35,6 +35,7 @@ import {
   Eye,
   Ruler,
   Printer,
+  Package,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,9 +45,6 @@ const empty = {
   whatsapp: "",
   email: "",
   address: "",
-  city: "",
-  province: "",
-  postal_code: "",
   gender: "P",
   birth_date: "",
   notes: "",
@@ -161,8 +159,6 @@ export default function Pelanggan() {
     );
 
     f.birth_date = c.birth_date || "";
-    f.whatsapp = c.whatsapp || c.phone || "";
-    f.phone = f.whatsapp;
 
     setForm(f);
     setModal("edit");
@@ -189,12 +185,8 @@ export default function Pelanggan() {
               : Number(form[k]))
       );
 
-      // Satu nomor WhatsApp di UI; kolom phone lama tetap disinkronkan.
-      payload.whatsapp = (form.whatsapp || form.phone || "").trim() || null;
-      payload.phone = payload.whatsapp;
-
-      // birth_date tetap dikirim apa adanya agar data lama tidak terhapus.
-      payload.birth_date = form.birth_date || null;
+      payload.birth_date =
+        form.birth_date || null;
 
       if (!payload.customer_code) {
         delete payload.customer_code;
@@ -235,6 +227,93 @@ export default function Pelanggan() {
     }
   };
 
+  /*
+   * CETAK RESI / LABEL PAKET
+   * Menggunakan data booking yang sudah tersedia; tidak mengubah database.
+   */
+  const printResi = (customer, booking = getCustomerBooking(customer)) => {
+    if (!booking || booking.pickup_method !== "SHIPPING") {
+      toast.error("Pelanggan ini belum memiliki booking dengan metode Paket Kiriman.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=700,height=800");
+    if (!printWindow) {
+      toast.error("Popup diblokir browser. Izinkan popup untuk mencetak.");
+      return;
+    }
+
+    const esc = (value) => {
+      if (value === null || value === undefined || value === "") return "-";
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    };
+
+    const recipient = booking.shipping_recipient || customer.name || "-";
+    const phone = booking.shipping_phone || customer.whatsapp || customer.phone || "-";
+    const address = booking.shipping_address || customer.address || "-";
+    const bookingNumber = booking.booking_number || booking.booking_no || "-";
+    const shippingDate = booking.shipping_date
+      ? new Date(booking.shipping_date).toLocaleDateString("id-ID", {
+          day: "2-digit", month: "long", year: "numeric",
+        })
+      : "-";
+    // Gunakan nomor resi/ekspedisi hanya bila memang ada pada data booking.
+    const courier = booking.shipping_courier || booking.courier_name || booking.shipping_provider || booking.expedition || "";
+    const trackingNumber = booking.shipping_tracking_number || booking.tracking_number || booking.resi_number || booking.no_resi || "";
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="id">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Label Paket - ${esc(bookingNumber)}</title>
+          <style>
+            @page { size: A5 portrait; margin: 0; }
+            * { box-sizing: border-box; }
+            html, body { width: 148mm; height: 210mm; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #241d22; font-size: 14px; }
+            .label { width: 148mm; height: 210mm; border: 2px solid #e83e8c; border-radius: 0; padding: 12mm; overflow: hidden; }
+            .brand, .subtitle, .footer { display: none !important; }
+            .rule { border: 0; border-top: 1px dashed #d8b9c8; margin: 12px 0; }
+            .tag { display: inline-block; background: #fff0f6; color: #c02672; padding: 7px 10px; border-radius: 6px; font-weight: 700; margin-top: 0; font-size: 15px; }
+            .heading { color: #806d77; font-size: 11px; text-transform: uppercase; letter-spacing: .7px; margin-bottom: 6px; }
+            .name { font-size: 26px; font-weight: 800; overflow-wrap: anywhere; }
+            .phone { font-size: 18px; font-weight: 700; margin-top: 8px; }
+            .address { font-size: 17px; line-height: 1.6; overflow-wrap: anywhere; }
+            .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 16px; }
+            .value { font-weight: 700; overflow-wrap: anywhere; }
+            .resi { border: 1px solid #f2d6e2; border-radius: 6px; padding: 12px; margin-top: 14px; font-size: 16px; }
+            @media print { html, body { width: 148mm; height: 210mm; } .label { break-inside: avoid; } }
+          </style>
+        </head>
+        <body>
+          <div class="label">
+            <div class="tag">📦 PAKET KIRIMAN</div>
+            <hr class="rule" />
+            <div class="heading">Kepada / Penerima</div>
+            <div class="name">${esc(recipient)}</div>
+            <div class="phone">WhatsApp: ${esc(phone)}</div>
+            <div style="margin-top:12px" class="heading">Alamat Pengiriman</div>
+            <div class="address">${esc(address)}</div>
+            <hr class="rule" />
+            <div class="meta">
+              <div><div class="heading">Nomor Booking</div><div class="value">${esc(bookingNumber)}</div></div>
+              <div><div class="heading">Tanggal Kirim</div><div class="value">${esc(shippingDate)}</div></div>
+            </div>
+            ${(courier || trackingNumber) ? `<div class="resi"><div class="heading">Ekspedisi</div><div class="value">${esc(courier || "Belum diisi")}</div><div class="heading" style="margin-top:8px">Nomor Resi</div><div class="value">${esc(trackingNumber || "Belum diisi")}</div></div>` : `<div class="resi"><div class="heading">Ekspedisi / Nomor Resi</div><div class="value">Belum tersedia pada data booking</div></div>`}
+          </div>
+          <script>window.onload = () => window.print();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const remove = async (c) => {
     if (
       !window.confirm(
@@ -262,7 +341,7 @@ export default function Pelanggan() {
 
   /*
    * CETAK DATA JAHIT
-   * Format A5 Portrait - 1 lembar
+   * Format A4 Portrait - 1 lembar
    */
   const printDataJahit = (customer, booking = getCustomerBooking(customer)) => {
     const printWindow = window.open(
@@ -356,16 +435,9 @@ export default function Pelanggan() {
       customer.phone ||
       "-";
 
-    const customerFullAddress = [
-      customer.address,
-      customer.city,
-      customer.province,
-      customer.postal_code,
-    ].filter(Boolean).join(", ");
-
     const shippingAddress =
       booking?.shipping_address ||
-      customerFullAddress ||
+      customer.address ||
       "-";
 
     const shippingDate = booking?.shipping_date
@@ -401,8 +473,8 @@ export default function Pelanggan() {
 
           <style>
             @page {
-              size: A5 portrait;
-              margin: 9mm;
+              size: A4 portrait;
+              margin: 10mm;
             }
 
             * {
@@ -419,8 +491,8 @@ export default function Pelanggan() {
                 Arial,
                 Helvetica,
                 sans-serif;
-              font-size: 10px;
-              line-height: 1.35;
+              font-size: 12px;
+              line-height: 1.45;
             }
 
             body {
@@ -428,8 +500,11 @@ export default function Pelanggan() {
             }
 
             .page {
+              display: flex;
+              flex-direction: column;
               width: 100%;
-              max-width: 130mm;
+              max-width: 190mm;
+              min-height: 277mm;
               margin: 0 auto;
             }
 
@@ -491,7 +566,7 @@ export default function Pelanggan() {
             }
 
             .section {
-              margin-top: 8px;
+              margin-top: 14px;
             }
 
             .section-title {
@@ -627,8 +702,9 @@ export default function Pelanggan() {
             .signatures {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 25px;
-              margin-top: 24px;
+              gap: 40px;
+              margin-top: auto;
+              padding-top: 36px;
             }
 
             .signature {
@@ -638,7 +714,7 @@ export default function Pelanggan() {
             }
 
             .space {
-              height: 25px;
+              height: 40px;
             }
 
             .line {
@@ -647,7 +723,7 @@ export default function Pelanggan() {
             }
 
             .footer {
-              margin-top: 9px;
+              margin-top: 14px;
               padding-top: 5px;
               border-top: 1px solid #f2d6e2;
               text-align: center;
@@ -658,13 +734,15 @@ export default function Pelanggan() {
             @media print {
               html,
               body {
-                width: 148mm;
-                min-height: 210mm;
+                width: 100%;
+                min-height: 277mm;
               }
 
               .page {
-                width: 130mm;
-                max-width: 130mm;
+                width: 190mm;
+                max-width: 190mm;
+                min-height: 277mm;
+                margin: 0 auto;
               }
             }
           </style>
@@ -1113,13 +1191,13 @@ export default function Pelanggan() {
                   </Td>
 
                   <Td>
-                    {c.whatsapp ||
-                      c.phone ||
+                    {c.phone ||
+                      c.whatsapp ||
                       "-"}
                   </Td>
 
-                  <Td className="max-w-[220px] truncate" title={[c.address, c.city, c.province, c.postal_code].filter(Boolean).join(", ")}>
-                    {[c.address, c.city, c.province, c.postal_code].filter(Boolean).join(", ") || "-"}
+                  <Td className="max-w-[220px] truncate">
+                    {c.address || "-"}
                   </Td>
 
                   <Td>
@@ -1208,9 +1286,21 @@ export default function Pelanggan() {
                           printDataJahit(c)
                         }
                         data-testid={`customer-print-jahit-${c.id}`}
-                        title="Cetak Data Jahit A5"
+                        title="Cetak Data Jahit A4"
                       >
                         <Printer className="h-4 w-4" />
+                      </Btn>
+
+                      <Btn
+                        variant="ghost"
+                        className="px-2 py-1.5 text-[#7C3AED]"
+                        onClick={() =>
+                          printResi(c)
+                        }
+                        data-testid={`customer-print-resi-${c.id}`}
+                        title="Cetak Resi Paket Kiriman"
+                      >
+                        <Package className="h-4 w-4" />
                       </Btn>
 
                       <Btn
@@ -1291,15 +1381,26 @@ export default function Pelanggan() {
 
           <Field label="No. WhatsApp">
             <TextInput
-              value={form.whatsapp || form.phone || ""}
+              value={form.whatsapp}
               onChange={(e) =>
                 setForm({
                   ...form,
                   whatsapp: e.target.value,
-                  phone: e.target.value,
                 })
               }
               data-testid="customer-whatsapp-input"
+            />
+          </Field>
+
+          <Field label="No. Telepon">
+            <TextInput
+              value={form.phone}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  phone: e.target.value,
+                })
+              }
             />
           </Field>
 
@@ -1338,8 +1439,22 @@ export default function Pelanggan() {
             />
           </Field>
 
+          <Field label="Tanggal Lahir">
+            <TextInput
+              type="date"
+              value={form.birth_date}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  birth_date:
+                    e.target.value,
+                })
+              }
+            />
+          </Field>
+
           <Field
-            label="Alamat lengkap"
+            label="Alamat"
             className="sm:col-span-2"
           >
             <TextArea
@@ -1349,33 +1464,6 @@ export default function Pelanggan() {
                   ...form,
                   address: e.target.value,
                 })
-              }
-            />
-          </Field>
-
-          <Field label="Kota/Kabupaten">
-            <TextInput
-              value={form.city || ""}
-              onChange={(e) =>
-                setForm({ ...form, city: e.target.value })
-              }
-            />
-          </Field>
-
-          <Field label="Provinsi">
-            <TextInput
-              value={form.province || ""}
-              onChange={(e) =>
-                setForm({ ...form, province: e.target.value })
-              }
-            />
-          </Field>
-
-          <Field label="Kode pos">
-            <TextInput
-              value={form.postal_code || ""}
-              onChange={(e) =>
-                setForm({ ...form, postal_code: e.target.value })
               }
             />
           </Field>
