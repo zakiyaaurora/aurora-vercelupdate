@@ -172,8 +172,10 @@ export default function CustomerRequests() {
         request.whatsapp,
         request.email,
         request.product_name,
+        request.address,
         request.city,
         request.province,
+        request.postal_code,
       ].some((value) => normalize(value).includes(query));
     });
   }, [requests, search]);
@@ -608,15 +610,23 @@ export default function CustomerRequests() {
                   />
                   <InfoItem
                     icon={MapPin}
-                    label="Alamat"
-                    value={[
-                      selected.address,
-                      selected.city,
-                      selected.province,
-                      selected.postal_code,
-                    ]
-                      .filter(Boolean)
-                      .join(", ")}
+                    label="Alamat Jalan"
+                    value={selected.address}
+                  />
+                  <InfoItem
+                    icon={MapPin}
+                    label="Kota/Kabupaten"
+                    value={selected.city}
+                  />
+                  <InfoItem
+                    icon={MapPin}
+                    label="Provinsi"
+                    value={selected.province}
+                  />
+                  <InfoItem
+                    icon={MapPin}
+                    label="Kode Pos"
+                    value={selected.postal_code}
                   />
                 </div>
               </div>
