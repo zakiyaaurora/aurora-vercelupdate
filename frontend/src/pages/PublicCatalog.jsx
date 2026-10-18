@@ -82,8 +82,8 @@ function RequestForm({ product, initialStart, initialEnd, onClose }) {
       return;
     }
 
-    if (!form.name.trim() || !form.phone.trim() || !form.whatsapp.trim()) {
-      toast.error("Nama, nomor telepon, dan WhatsApp wajib diisi.");
+    if (!form.name.trim() || !form.whatsapp.trim()) {
+      toast.error("Nama dan nomor WhatsApp wajib diisi.");
       return;
     }
 
@@ -137,7 +137,9 @@ function RequestForm({ product, initialStart, initialEnd, onClose }) {
     try {
       const payload = {
         name: form.name.trim(),
-        phone: form.phone.trim(),
+        // Satu nomor WhatsApp dipakai untuk kedua kolom lama di database.
+        // Kolom phone tetap dikirim karena masih wajib pada RPC customer request.
+        phone: form.whatsapp.trim(),
         whatsapp: form.whatsapp.trim(),
         email: form.email.trim() || null,
         address: form.address.trim(),
@@ -263,20 +265,7 @@ function RequestForm({ product, initialStart, initialEnd, onClose }) {
                 />
               </RequestField>
 
-              <RequestField label="Nomor telepon" required>
-                <input
-                  className={inputClass}
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => update("phone", e.target.value)}
-                  maxLength={30}
-                  autoComplete="tel"
-                  required
-                  placeholder="Contoh: 081234567890"
-                />
-              </RequestField>
-
-              <RequestField label="Nomor WhatsApp" required>
+              <RequestField label="Nomor WhatsApp aktif" required>
                 <input
                   className={inputClass}
                   type="tel"
@@ -285,7 +274,7 @@ function RequestForm({ product, initialStart, initialEnd, onClose }) {
                   maxLength={30}
                   autoComplete="tel"
                   required
-                  placeholder="Nomor WhatsApp aktif"
+                  placeholder="Contoh: 081234567890"
                 />
               </RequestField>
 
