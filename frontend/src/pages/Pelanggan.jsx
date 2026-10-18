@@ -44,6 +44,9 @@ const empty = {
   whatsapp: "",
   email: "",
   address: "",
+  city: "",
+  province: "",
+  postal_code: "",
   gender: "P",
   birth_date: "",
   notes: "",
@@ -158,6 +161,8 @@ export default function Pelanggan() {
     );
 
     f.birth_date = c.birth_date || "";
+    f.whatsapp = c.whatsapp || c.phone || "";
+    f.phone = f.whatsapp;
 
     setForm(f);
     setModal("edit");
@@ -184,8 +189,12 @@ export default function Pelanggan() {
               : Number(form[k]))
       );
 
-      payload.birth_date =
-        form.birth_date || null;
+      // Satu nomor WhatsApp di UI; kolom phone lama tetap disinkronkan.
+      payload.whatsapp = (form.whatsapp || form.phone || "").trim() || null;
+      payload.phone = payload.whatsapp;
+
+      // birth_date tetap dikirim apa adanya agar data lama tidak terhapus.
+      payload.birth_date = form.birth_date || null;
 
       if (!payload.customer_code) {
         delete payload.customer_code;
@@ -347,9 +356,16 @@ export default function Pelanggan() {
       customer.phone ||
       "-";
 
+    const customerFullAddress = [
+      customer.address,
+      customer.city,
+      customer.province,
+      customer.postal_code,
+    ].filter(Boolean).join(", ");
+
     const shippingAddress =
       booking?.shipping_address ||
-      customer.address ||
+      customerFullAddress ||
       "-";
 
     const shippingDate = booking?.shipping_date
@@ -1097,13 +1113,13 @@ export default function Pelanggan() {
                   </Td>
 
                   <Td>
-                    {c.phone ||
-                      c.whatsapp ||
+                    {c.whatsapp ||
+                      c.phone ||
                       "-"}
                   </Td>
 
-                  <Td className="max-w-[220px] truncate">
-                    {c.address || "-"}
+                  <Td className="max-w-[220px] truncate" title={[c.address, c.city, c.province, c.postal_code].filter(Boolean).join(", ")}>
+                    {[c.address, c.city, c.province, c.postal_code].filter(Boolean).join(", ") || "-"}
                   </Td>
 
                   <Td>
@@ -1275,26 +1291,15 @@ export default function Pelanggan() {
 
           <Field label="No. WhatsApp">
             <TextInput
-              value={form.whatsapp}
+              value={form.whatsapp || form.phone || ""}
               onChange={(e) =>
                 setForm({
                   ...form,
                   whatsapp: e.target.value,
-                })
-              }
-              data-testid="customer-whatsapp-input"
-            />
-          </Field>
-
-          <Field label="No. Telepon">
-            <TextInput
-              value={form.phone}
-              onChange={(e) =>
-                setForm({
-                  ...form,
                   phone: e.target.value,
                 })
               }
+              data-testid="customer-whatsapp-input"
             />
           </Field>
 
@@ -1333,22 +1338,8 @@ export default function Pelanggan() {
             />
           </Field>
 
-          <Field label="Tanggal Lahir">
-            <TextInput
-              type="date"
-              value={form.birth_date}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  birth_date:
-                    e.target.value,
-                })
-              }
-            />
-          </Field>
-
           <Field
-            label="Alamat"
+            label="Alamat lengkap"
             className="sm:col-span-2"
           >
             <TextArea
@@ -1358,6 +1349,33 @@ export default function Pelanggan() {
                   ...form,
                   address: e.target.value,
                 })
+              }
+            />
+          </Field>
+
+          <Field label="Kota/Kabupaten">
+            <TextInput
+              value={form.city || ""}
+              onChange={(e) =>
+                setForm({ ...form, city: e.target.value })
+              }
+            />
+          </Field>
+
+          <Field label="Provinsi">
+            <TextInput
+              value={form.province || ""}
+              onChange={(e) =>
+                setForm({ ...form, province: e.target.value })
+              }
+            />
+          </Field>
+
+          <Field label="Kode pos">
+            <TextInput
+              value={form.postal_code || ""}
+              onChange={(e) =>
+                setForm({ ...form, postal_code: e.target.value })
               }
             />
           </Field>
