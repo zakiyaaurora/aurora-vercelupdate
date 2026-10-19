@@ -169,8 +169,8 @@ export default function Invoice() {
               background: white !important;
               color: #1F191E !important;
               font-family: Arial, Helvetica, sans-serif !important;
-              font-size: 11px !important;
-              line-height: 1.3 !important;
+              font-size: 12px !important;
+              line-height: 1.45 !important;
             }
 
             body {
@@ -583,9 +583,12 @@ export default function Invoice() {
                       </div>
                     )}
 
-                    {detail.customer?.address && (
-                      <p className="text-xs text-[#7A6A75] mt-1">
-                        {detail.customer.address}
+                    {(detail.customer?.address || detail.customer?.city || detail.customer?.province) && (
+                      <p className="text-xs text-[#7A6A75] mt-1 leading-relaxed">
+                        {[detail.customer?.address, detail.customer?.city, detail.customer?.province]
+                          .filter((part) => typeof part === "string" && part.trim())
+                          .filter((part, index, all) => all.indexOf(part) === index)
+                          .join(", ")}
                       </p>
                     )}
                   </div>
