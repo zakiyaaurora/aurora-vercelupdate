@@ -35,6 +35,7 @@ import {
   RotateCcw,
   Truck,
   ClipboardList,
+  WashingMachine,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -777,15 +778,19 @@ export default function Dashboard() {
               )}
             />
 
-            <AttentionRow
-              icon={Boxes}
-              tone="blue"
-              label="Unit Maintenance"
-              value={
-                s.maintenance_units ??
-                0
-              }
-            />
+            <button
+              type="button"
+              onClick={() => navigate("/products")}
+              className="w-full text-left rounded-xl transition-all duration-200 hover:bg-[#FFF5F8] hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E83E8C]"
+              aria-label="Lihat unit yang sedang dicuci di menu stok"
+            >
+              <AttentionRow
+                icon={WashingMachine}
+                tone="amber"
+                label="Unit Sedang Dicuci"
+                value={s.cleaning_units ?? 0}
+              />
+            </button>
 
             <button type="button" onClick={() => navigate("/customer-requests")} className="w-full text-left rounded-xl transition-all duration-200 hover:bg-[#FFF5F8] hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E83E8C]">
               <AttentionRow
