@@ -29,6 +29,8 @@ export default function Stok() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [cardFilter, setCardFilter] = useState("");
+  const [activeTab, setActiveTab] = useState("units");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
@@ -58,9 +60,18 @@ export default function Stok() {
 
   const filtered = useMemo(() => inventory.filter((i) => {
     const okS = !search || (i.sku || "").toLowerCase().includes(search.toLowerCase()) || (i.product?.name || "").toLowerCase().includes(search.toLowerCase());
-    const okF = !statusFilter || i.status === statusFilter;
-    return okS && okF;
-  }), [inventory, search, statusFilter]);
+    const okStatus = !statusFilter || i.status === statusFilter;
+    const okCard = !cardFilter
+      || (cardFilter === "ISSUES" && ["MAINTENANCE", "DAMAGED", "LOST"].includes(i.status))
+      || (cardFilter !== "ISSUES" && cardFilter !== "ALL" && i.status === cardFilter);
+    return okS && okStatus && okCard;
+  }), [inventory, search, statusFilter, cardFilter]);
+
+  const selectCardFilter = (filter) => {
+    setCardFilter(filter === "ALL" ? "" : filter);
+    setStatusFilter("");
+    setActiveTab("units");
+  };
 
   const save = async () => {
     if (!form.product_id) { toast.error("Pilih produk"); return; }
@@ -144,14 +155,24 @@ export default function Stok() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <StatCard label="Total Unit" value={counts.total} icon={Boxes} tone="pink" />
-        <StatCard label="Tersedia" value={counts.AVAILABLE} icon={PackageCheck} tone="green" />
-        <StatCard label="Disewa" value={counts.RENTED} icon={Boxes} tone="amber" />
-        <StatCard label="Sedang Dicuci" value={counts.CUCI} icon={WashingMachine} tone="blue" />
-        <StatCard label="Maintenance / Rusak" value={counts.MAINTENANCE + counts.DAMAGED + counts.LOST} icon={Wrench} tone="red" />
+        <button type="button" onClick={() => selectCardFilter("ALL")} aria-pressed={!cardFilter && !statusFilter} className="w-full rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400">
+          <StatCard label="Total Unit" value={counts.total} icon={Boxes} tone="pink" />
+        </button>
+        <button type="button" onClick={() => selectCardFilter("AVAILABLE")} aria-pressed={cardFilter === "AVAILABLE"} className={`w-full rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 ${cardFilter === "AVAILABLE" ? "ring-2 ring-emerald-400 shadow-md" : ""}`}>
+          <StatCard label="Tersedia" value={counts.AVAILABLE} icon={PackageCheck} tone="green" />
+        </button>
+        <button type="button" onClick={() => selectCardFilter("RENTED")} aria-pressed={cardFilter === "RENTED"} className={`w-full rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 ${cardFilter === "RENTED" ? "ring-2 ring-amber-400 shadow-md" : ""}`}>
+          <StatCard label="Disewa" value={counts.RENTED} icon={Boxes} tone="amber" />
+        </button>
+        <button type="button" onClick={() => selectCardFilter("CUCI")} aria-pressed={cardFilter === "CUCI"} className={`w-full rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 ${cardFilter === "CUCI" ? "ring-2 ring-sky-400 shadow-md" : ""}`}>
+          <StatCard label="Sedang Dicuci" value={counts.CUCI} icon={WashingMachine} tone="blue" />
+        </button>
+        <button type="button" onClick={() => selectCardFilter("ISSUES")} aria-pressed={cardFilter === "ISSUES"} className={`w-full rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 ${cardFilter === "ISSUES" ? "ring-2 ring-red-400 shadow-md" : ""}`}>
+          <StatCard label="Maintenance / Rusak" value={counts.MAINTENANCE + counts.DAMAGED + counts.LOST} icon={Wrench} tone="red" />
+        </button>
       </div>
 
-      <Tabs defaultValue="units">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-[#FFF5F8]">
           <TabsTrigger value="units" data-testid="tab-units">Unit Inventaris</TabsTrigger>
           <TabsTrigger value="movements" data-testid="tab-movements">Pergerakan Stok</TabsTrigger>
@@ -161,7 +182,8 @@ export default function Stok() {
           <SectionCard>
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <SearchInput value={search} onChange={setSearch} placeholder="Cari SKU / produk…" testid="inventory-search" />
-              <NativeSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} placeholder="Semua Status" options={INVENTORY_STATUS_WITH_CUCI} className="sm:w-48" />
+              <NativeSelect value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCardFilter(""); }} placeholder="Semua Status" options={INVENTORY_STATUS_WITH_CUCI} className="sm:w-48" />
+              {(cardFilter || statusFilter || search) && <Btn variant="outline" onClick={() => { setCardFilter(""); setStatusFilter(""); setSearch(""); }}>Reset Filter</Btn>}
             </div>
 
             {filtered.length === 0 ? <EmptyState title="Tidak ada unit" /> : (
