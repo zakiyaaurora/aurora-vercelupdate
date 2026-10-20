@@ -519,7 +519,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
-        <button type="button" onClick={() => navigate("/products")} className="dashboard-stat-button text-left">
+        <button type="button" onClick={() => navigate("/stok")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-total-kebaya"
           label="Total Kebaya"
@@ -535,7 +535,7 @@ export default function Dashboard() {
         />
         </button>
 
-        <button type="button" onClick={() => navigate("/products")} className="dashboard-stat-button text-left">
+        <button type="button" onClick={() => navigate("/stok")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-available"
           label="Tersedia"
@@ -599,7 +599,7 @@ export default function Dashboard() {
         />
         </button>
 
-        <button type="button" onClick={() => navigate("/reports")} className="dashboard-stat-button text-left">
+        <button type="button" onClick={() => navigate("/laporan")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-revenue-today"
           label="Pendapatan Hari Ini"
@@ -613,7 +613,7 @@ export default function Dashboard() {
         />
         </button>
 
-        <button type="button" onClick={() => navigate("/payments")} className="dashboard-stat-button text-left">
+        <button type="button" onClick={() => navigate("/pembayaran")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-receivables"
           label="Piutang"
@@ -625,7 +625,7 @@ export default function Dashboard() {
         />
         </button>
 
-        <button type="button" onClick={() => navigate("/reports")} className="dashboard-stat-button text-left">
+        <button type="button" onClick={() => navigate("/laporan")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-revenue-month"
           label="Pendapatan Bulan Ini"
@@ -780,7 +780,7 @@ export default function Dashboard() {
 
             <button
               type="button"
-              onClick={() => navigate("/products")}
+              onClick={() => navigate("/stok")}
               className="w-full text-left rounded-xl transition-all duration-200 hover:bg-[#FFF5F8] hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E83E8C]"
               aria-label="Lihat unit yang sedang dicuci di menu stok"
             >
