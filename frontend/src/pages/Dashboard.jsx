@@ -1,9 +1,11 @@
 import { useAsync } from "@/lib/hooks";
+import { useNavigate } from "react-router-dom";
 import {
   dashboardStats,
   listBookings,
   listRentals,
   listPayments,
+  getCustomerRequests,
 } from "@/lib/api";
 import {
   formatRupiah,
@@ -32,6 +34,7 @@ import {
   CalendarClock,
   RotateCcw,
   Truck,
+  ClipboardList,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -101,6 +104,7 @@ function isoToday() {
 
 export default function Dashboard() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
 
   const {
     data,
@@ -113,11 +117,13 @@ export default function Dashboard() {
       bookings,
       rentals,
       payments,
+      customerRequests,
     ] = await Promise.all([
       dashboardStats(),
       listBookings(),
       listRentals(),
       listPayments(),
+      getCustomerRequests("PENDING").catch(() => []),
     ]);
 
     return {
@@ -125,6 +131,7 @@ export default function Dashboard() {
       bookings,
       rentals,
       payments,
+      customerRequests,
     };
   }, []);
 
@@ -151,6 +158,9 @@ export default function Dashboard() {
 
   const payments =
     data.payments || [];
+
+  const pendingCustomerRequests =
+    Array.isArray(data.customerRequests) ? data.customerRequests : [];
 
   /* ============================================================
      REVENUE CHART
@@ -334,14 +344,12 @@ export default function Dashboard() {
   const akanKembaliCount =
     dueRentals.length;
 
-  const kirimanCount =
-    shippingAlerts.length;
-
   return (
     <div
       data-testid="dashboard-page"
       className="space-y-6"
     >
+      <style>{`@keyframes dashboardIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } } .dashboard-stat-button { border-radius: 1rem; transition: transform 220ms ease, box-shadow 220ms ease; } .dashboard-stat-button:hover { transform: translateY(-3px); } .dashboard-stat-button:focus-visible { outline: 2px solid #E83E8C; outline-offset: 3px; } @media (prefers-reduced-motion: reduce) { .dashboard-stat-button, [class*="animate-[dashboardIn"] { animation: none !important; transition: none !important; } }`}</style>
 
       {/* ========================================================
           HEADER
@@ -371,6 +379,7 @@ export default function Dashboard() {
           subtitle="Booking mendatang"
           icon={CalendarClock}
           tone="blue"
+          onClick={() => navigate("/booking")}
         />
 
         {/* SEDANG DISEWA */}
@@ -383,6 +392,7 @@ export default function Dashboard() {
           subtitle="Unit sedang keluar"
           icon={Clock}
           tone="amber"
+          onClick={() => navigate("/rental")}
         />
 
         {/* AKAN KEMBALI */}
@@ -395,18 +405,18 @@ export default function Dashboard() {
           subtitle="Dalam 7 hari"
           icon={RotateCcw}
           tone="green"
+          onClick={() => navigate("/rental")}
         />
 
         {/* KIRIMAN */}
         <OperationalCard
           testid="operational-shipping"
-          title="Status Kiriman"
-          value={
-            kirimanCount
-          }
-          subtitle="Perlu perhatian"
-          icon={Package}
+          title="Customer Request"
+          value={pendingCustomerRequests.length}
+          subtitle="Menunggu diproses"
+          icon={ClipboardList}
           tone="pink"
+          onClick={() => navigate("/customer-requests")}
         />
 
       </div>
@@ -508,6 +518,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
+        <button type="button" onClick={() => navigate("/products")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-total-kebaya"
           label="Total Kebaya"
@@ -521,7 +532,9 @@ export default function Dashboard() {
           icon={Boxes}
           tone="pink"
         />
+        </button>
 
+        <button type="button" onClick={() => navigate("/products")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-available"
           label="Tersedia"
@@ -534,7 +547,9 @@ export default function Dashboard() {
           }
           tone="green"
         />
+        </button>
 
+        <button type="button" onClick={() => navigate("/rental")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-rented"
           label="Sedang Disewa"
@@ -545,7 +560,9 @@ export default function Dashboard() {
           icon={Clock}
           tone="amber"
         />
+        </button>
 
+        <button type="button" onClick={() => navigate("/booking")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-bookings-today"
           label="Booking Hari Ini"
@@ -562,7 +579,9 @@ export default function Dashboard() {
           }
           tone="purple"
         />
+        </button>
 
+        <button type="button" onClick={() => navigate("/rental")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-active-rentals"
           label="Rental Aktif"
@@ -577,7 +596,9 @@ export default function Dashboard() {
           icon={Clock}
           tone="blue"
         />
+        </button>
 
+        <button type="button" onClick={() => navigate("/reports")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-revenue-today"
           label="Pendapatan Hari Ini"
@@ -589,7 +610,9 @@ export default function Dashboard() {
           }
           tone="green"
         />
+        </button>
 
+        <button type="button" onClick={() => navigate("/payments")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-receivables"
           label="Piutang"
@@ -599,7 +622,9 @@ export default function Dashboard() {
           icon={Wallet}
           tone="red"
         />
+        </button>
 
+        <button type="button" onClick={() => navigate("/reports")} className="dashboard-stat-button text-left">
         <StatCard
           testid="stat-revenue-month"
           label="Pendapatan Bulan Ini"
@@ -611,6 +636,7 @@ export default function Dashboard() {
           }
           tone="pink"
         />
+        </button>
 
       </div>
 
@@ -761,17 +787,14 @@ export default function Dashboard() {
               }
             />
 
-            <AttentionRow
-              icon={
-                AlertTriangle
-              }
-              tone="red"
-              label="Rusak / Hilang"
-              value={
-                s.damaged_units ??
-                0
-              }
-            />
+            <button type="button" onClick={() => navigate("/customer-requests")} className="w-full text-left rounded-xl transition-all duration-200 hover:bg-[#FFF5F8] hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E83E8C]">
+              <AttentionRow
+                icon={ClipboardList}
+                tone="pink"
+                label="Customer Request menunggu"
+                value={pendingCustomerRequests.length}
+              />
+            </button>
 
             <AttentionRow
               icon={Users}
@@ -1040,6 +1063,7 @@ function OperationalCard({
   subtitle,
   icon: Icon,
   tone,
+  onClick,
 }) {
   const tones = {
     blue: {
@@ -1072,9 +1096,12 @@ function OperationalCard({
     tones.pink;
 
   return (
-    <div
+    <button
+      type="button"
       data-testid={testid}
-      className={`rounded-2xl border p-4 shadow-sm ${t.box}`}
+      onClick={onClick}
+      className={`group w-full text-left rounded-2xl border p-4 shadow-sm ${t.box} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E83E8C] motion-safe:animate-[dashboardIn_450ms_ease-out_both]`}
+      style={{ cursor: onClick ? "pointer" : "default" }}
     >
       <div className="flex items-start justify-between gap-3">
 
@@ -1084,7 +1111,7 @@ function OperationalCard({
           </p>
 
           <p
-            className={`text-3xl font-bold mt-1 ${t.value}`}
+            className={`text-3xl font-bold mt-1 ${t.value} transition-transform duration-300 group-hover:scale-105 origin-left`}
           >
             {value}
           </p>
@@ -1097,11 +1124,12 @@ function OperationalCard({
         <div
           className={`h-10 w-10 rounded-xl grid place-items-center ${t.icon}`}
         >
-          <Icon className="h-5 w-5" />
+          <Icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" />
         </div>
 
       </div>
-    </div>
+      <span className="sr-only">Buka menu {title}</span>
+    </button>
   );
 }
 
