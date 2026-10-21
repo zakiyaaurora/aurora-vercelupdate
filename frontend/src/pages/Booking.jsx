@@ -48,6 +48,7 @@ import {
   XCircle,
   Pencil,
   Printer,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -73,6 +74,13 @@ export default function Booking() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  // Filter kalender booking
+  const now = new Date();
+  const [calendarMonth, setCalendarMonth] = useState(String(now.getMonth()));
+  const [calendarYear, setCalendarYear] = useState(String(now.getFullYear()));
+  const [calendarProduct, setCalendarProduct] = useState("");
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState("");
 
   const [modal, setModal] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -135,6 +143,56 @@ export default function Booking() {
       }),
     [bookings, search, statusFilter]
   );
+
+  const calendarDateKey = (date) => {
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  const calendarBookings = useMemo(() => {
+    return bookings.filter((b) => {
+      if (["CANCELLED"].includes(b.status)) return false;
+      if (calendarProduct) {
+        const items = b.items || b.booking_items || [];
+        // Bila daftar booking tidak menyertakan item, jangan menebak produk.
+        if (!items.some((it) =>
+          String(it.product_id || it.product?.id || "") === String(calendarProduct)
+        )) return false;
+      }
+      return true;
+    });
+  }, [bookings, calendarProduct]);
+
+  const calendarDays = useMemo(() => {
+    const year = Number(calendarYear);
+    const monthIndex = Number(calendarMonth);
+    const firstDay = new Date(year, monthIndex, 1).getDay();
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    return [
+      ...Array(firstDay).fill(null),
+      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ];
+  }, [calendarMonth, calendarYear]);
+
+  const bookingsForCalendarDate = (day) => {
+    if (!day) return [];
+    const key = `${calendarYear}-${String(Number(calendarMonth) + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return calendarBookings.filter((b) => {
+      const start = calendarDateKey(b.start_date);
+      const end = calendarDateKey(b.end_date);
+      return start && end && start <= key && end >= key;
+    });
+  };
+
+  const selectedDateBookings = useMemo(() => {
+    if (!selectedCalendarDate) return [];
+    return calendarBookings.filter((b) => {
+      const start = calendarDateKey(b.start_date);
+      const end = calendarDateKey(b.end_date);
+      return start && end && start <= selectedCalendarDate && end >= selectedCalendarDate;
+    });
+  }, [calendarBookings, selectedCalendarDate]);
 
   /* ------------------------------------------------------------------
      SHIPPING
@@ -1175,6 +1233,121 @@ export default function Booking() {
           </Btn>
         }
       />
+
+      {/* ============================================================
+          KALENDER BOOKING + FILTER
+      ============================================================ */}
+      <SectionCard>
+        <div className="flex items-start gap-3 mb-4">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FFF0F6] text-[#E83E8C]">
+            <CalendarDays className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-[#1F191E]">Kalender Booking Kebaya</h2>
+            <p className="text-xs text-[#7A6A75] mt-1">Pilih kebaya, bulan, tahun, lalu klik tanggal untuk melihat pelanggan yang sedang booking.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <Field label="Filter Kebaya">
+            <NativeSelect
+              value={calendarProduct}
+              onChange={(e) => setCalendarProduct(e.target.value)}
+              placeholder="Semua kebaya"
+              options={products.map((p) => ({ value: p.id, label: `${p.name}${p.product_code ? ` · ${p.product_code}` : ""}` }))}
+            />
+          </Field>
+          <Field label="Bulan">
+            <NativeSelect
+              value={calendarMonth}
+              onChange={(e) => { setCalendarMonth(e.target.value); setSelectedCalendarDate(""); }}
+              options={["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"].map((label, i) => ({ value: String(i), label }))}
+            />
+          </Field>
+          <Field label="Tahun">
+            <NativeSelect
+              value={calendarYear}
+              onChange={(e) => { setCalendarYear(e.target.value); setSelectedCalendarDate(""); }}
+              options={Array.from({ length: 7 }, (_, i) => Number(now.getFullYear()) - 2 + i).map((y) => ({ value: String(y), label: String(y) }))}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1.5 mb-2">
+          {["Min","Sen","Sel","Rab","Kam","Jum","Sab"].map((day) => (
+            <div key={day} className="py-2 text-center text-[11px] font-semibold text-[#A18895]">{day}</div>
+          ))}
+          {calendarDays.map((day, index) => {
+            if (!day) return <div key={`blank-${index}`} className="min-h-16 rounded-lg bg-[#FEFCFD]" />;
+            const dayBookings = bookingsForCalendarDate(day);
+            const key = `${calendarYear}-${String(Number(calendarMonth) + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const selected = selectedCalendarDate === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSelectedCalendarDate(key)}
+                className={`min-h-16 rounded-lg border p-1.5 text-left transition ${
+                  selected ? "border-[#E83E8C] bg-[#FFF0F6] ring-1 ring-[#E83E8C]" :
+                  dayBookings.length ? "border-[#F3C5D8] bg-[#FFF7FA] hover:border-[#E83E8C]" :
+                  "border-[#F3D9E4] bg-white hover:bg-[#FEFCFD]"
+                }`}
+                aria-label={`Tanggal ${day}, ${dayBookings.length} booking`}
+              >
+                <span className={`text-xs font-semibold ${selected ? "text-[#E83E8C]" : "text-[#1F191E]"}`}>{day}</span>
+                {dayBookings.length > 0 && (
+                  <span className="mt-1 block rounded-md bg-[#E83E8C] px-1 py-0.5 text-center text-[9px] font-semibold text-white">
+                    {dayBookings.length} booking
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap gap-3 text-[11px] text-[#7A6A75] mb-4">
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#E83E8C]" /> Ada booking</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm border border-[#F3D9E4] bg-white" /> Tidak ada booking</span>
+        </div>
+
+        {selectedCalendarDate && (
+          <div className="rounded-xl border border-[#F3D9E4] bg-[#FEFCFD] p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+              <div>
+                <h3 className="font-semibold text-[#1F191E]">Jadwal tanggal {formatDateShort(selectedCalendarDate)}</h3>
+                <p className="text-xs text-[#7A6A75] mt-1">{selectedDateBookings.length} booking pada tanggal ini</p>
+              </div>
+              <Btn variant="outline" className="py-1.5" onClick={() => setSelectedCalendarDate("")}>Tutup tanggal</Btn>
+            </div>
+            {selectedDateBookings.length === 0 ? (
+              <p className="text-sm text-[#7A6A75]">Tidak ada booking pada tanggal ini berdasarkan data yang tersedia.</p>
+            ) : (
+              <div className="space-y-2">
+                {selectedDateBookings.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => viewDetail(b)}
+                    className="w-full rounded-lg border border-[#F3D9E4] bg-white p-3 text-left hover:border-[#E83E8C] transition"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-[#1F191E]">{b.customer?.name || "Nama pelanggan tidak tersedia"}</p>
+                        <p className="text-xs text-[#7A6A75] mt-1">{b.booking_number} · {formatDateShort(b.start_date)} — {formatDateShort(b.end_date)}</p>
+                        {Array.isArray(b.items) && b.items.length > 0 && (
+                          <p className="text-xs text-[#7A6A75] mt-1">{b.items.map((it) => it.product?.name || products.find((p) => p.id === it.product_id)?.name).filter(Boolean).join(", ")}</p>
+                        )}
+                      </div>
+                      <StatusBadge status={b.status} />
+                    </div>
+                    <p className="text-[11px] text-[#E83E8C] mt-2">Klik untuk membuka detail booking</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </SectionCard>
 
       {/* ============================================================
           LIST BOOKING
