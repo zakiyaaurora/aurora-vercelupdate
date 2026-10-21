@@ -74,6 +74,9 @@ export default function Booking() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  // Filter tambahan untuk tabel daftar booking
+  const [listMonth, setListMonth] = useState("");
+  const [listYear, setListYear] = useState("");
 
   // Filter kalender booking
   const now = new Date();
@@ -124,6 +127,12 @@ export default function Booking() {
 
   const [form, setForm] = useState(emptyForm());
 
+  const calendarDateKey = (date) => {
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
   const filtered = useMemo(
     () =>
       bookings.filter((b) => {
@@ -136,25 +145,68 @@ export default function Booking() {
             .toLowerCase()
             .includes(search.toLowerCase());
 
-        const okF =
-          !statusFilter || b.status === statusFilter;
+        const okF = !statusFilter || b.status === statusFilter;
 
-        return okS && okF;
+        // Filter bulan/tahun berdasarkan periode sewa yang beririsan dengan bulan pilihan.
+        const start = calendarDateKey(b.start_date);
+        const end = calendarDateKey(b.end_date);
+        let okPeriod = true;
+        if (listMonth || listYear) {
+          if (!start || !end) {
+            okPeriod = false;
+          } else if (listYear) {
+            const year = Number(listYear);
+            const monthIndex = listMonth === "" ? null : Number(listMonth);
+            const rangeStart = monthIndex === null
+              ? `${year}-01-01`
+              : `${year}-${String(monthIndex + 1).padStart(2, "0")}-01`;
+            const lastDay = monthIndex === null ? 31 : new Date(year, monthIndex + 1, 0).getDate();
+            const rangeEnd = monthIndex === null
+              ? `${year}-12-31`
+              : `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+            okPeriod = start <= rangeEnd && end >= rangeStart;
+          } else if (listMonth) {
+            // Jika hanya bulan dipilih, cocokkan bulan tersebut pada tahun mana pun.
+            const monthIndex = Number(listMonth);
+            const firstYear = Number(start.slice(0, 4));
+            const lastYear = Number(end.slice(0, 4));
+            okPeriod = false;
+            for (let year = firstYear; year <= lastYear; year += 1) {
+              const rangeStart = `${year}-${String(monthIndex + 1).padStart(2, "0")}-01`;
+              const rangeEnd = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(new Date(year, monthIndex + 1, 0).getDate()).padStart(2, "0")}`;
+              if (start <= rangeEnd && end >= rangeStart) {
+                okPeriod = true;
+                break;
+              }
+            }
+          }
+        }
+
+        return okS && okF && okPeriod;
       }),
-    [bookings, search, statusFilter]
+    [bookings, search, statusFilter, listMonth, listYear]
   );
 
-  const calendarDateKey = (date) => {
-    const d = new Date(date);
-    if (Number.isNaN(d.getTime())) return "";
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const getBookingItems = (booking) => {
+    if (Array.isArray(booking?.items) && booking.items.length) return booking.items;
+    if (Array.isArray(booking?.booking_items) && booking.booking_items.length) return booking.booking_items;
+    return [];
+  };
+
+  const getBookingProductNames = (booking) => {
+    const items = getBookingItems(booking);
+    const names = items.map((item) => {
+      const productId = item.product_id || item.product?.id || item.product?.product_id;
+      return item.product?.name || item.product_name || item.name || products.find((p) => String(p.id) === String(productId))?.name;
+    }).filter(Boolean);
+    return [...new Set(names)];
   };
 
   const calendarBookings = useMemo(() => {
     return bookings.filter((b) => {
       if (["CANCELLED"].includes(b.status)) return false;
       if (calendarProduct) {
-        const items = b.items || b.booking_items || [];
+        const items = (Array.isArray(b.items) && b.items.length) ? b.items : (b.booking_items || []);
         // Bila daftar booking tidak menyertakan item, jangan menebak produk.
         if (!items.some((it) =>
           String(it.product_id || it.product?.id || "") === String(calendarProduct)
@@ -162,7 +214,7 @@ export default function Booking() {
       }
       return true;
     });
-  }, [bookings, calendarProduct]);
+  }, [bookings, calendarProduct, products]);
 
   const calendarDays = useMemo(() => {
     const year = Number(calendarYear);
@@ -1334,9 +1386,10 @@ export default function Booking() {
                       <div>
                         <p className="text-sm font-semibold text-[#1F191E]">{b.customer?.name || "Nama pelanggan tidak tersedia"}</p>
                         <p className="text-xs text-[#7A6A75] mt-1">{b.booking_number} · {formatDateShort(b.start_date)} — {formatDateShort(b.end_date)}</p>
-                        {Array.isArray(b.items) && b.items.length > 0 && (
-                          <p className="text-xs text-[#7A6A75] mt-1">{b.items.map((it) => it.product?.name || products.find((p) => p.id === it.product_id)?.name).filter(Boolean).join(", ")}</p>
-                        )}
+                        <p className="text-xs text-[#7A6A75] mt-1">
+                          <span className="font-semibold">Kebaya: </span>
+                          {getBookingProductNames(b).join(", ") || "Detail kebaya tidak tersedia pada data booking"}
+                        </p>
                       </div>
                       <StatusBadge status={b.status} />
                     </div>
@@ -1361,6 +1414,22 @@ export default function Booking() {
             onChange={setSearch}
             placeholder="Cari nomor / pelanggan…"
             testid="booking-search"
+          />
+
+          <NativeSelect
+            value={listMonth}
+            onChange={(e) => setListMonth(e.target.value)}
+            placeholder="Semua Bulan"
+            options={["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"].map((label, i) => ({ value: String(i), label }))}
+            className="sm:w-40"
+          />
+
+          <NativeSelect
+            value={listYear}
+            onChange={(e) => setListYear(e.target.value)}
+            placeholder="Semua Tahun"
+            options={[...new Set([new Date().getFullYear(), ...bookings.map((b) => Number(String(b.start_date || "").slice(0, 4))).filter((y) => Number.isFinite(y) && y > 1900)])].sort((a, b) => b - a).map((y) => ({ value: String(y), label: String(y) }))}
+            className="sm:w-36"
           />
 
           <NativeSelect
