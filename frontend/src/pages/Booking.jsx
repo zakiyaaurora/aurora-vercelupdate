@@ -214,8 +214,7 @@ export default function Booking() {
       }
       return true;
     });
-  }, [bookings, calendarProduct, products]);
-
+    }, [bookings, calendarProduct]);
   const calendarDays = useMemo(() => {
     const year = Number(calendarYear);
     const monthIndex = Number(calendarMonth);
