@@ -94,6 +94,10 @@ export default function Rental() {
   const { data, loading, error, reload } = useAsync(listRentals, []);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
+  const [sortBy, setSortBy] = useState("due_date");
+  const [sortDirection, setSortDirection] = useState("asc");
   const [detail, setDetail] = useState(null);
   const [returnModal, setReturnModal] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -120,17 +124,34 @@ export default function Rental() {
             (it.inventory?.sku || "").toLowerCase().includes(q)
           );
         const effectiveStatus = isRentalOverdue(r) ? "OVERDUE" : r.status;
-        const okF = !statusFilter || effectiveStatus === statusFilter;
-        return okS && okF;
+        const okF = !statusFilter ||
+          (statusFilter === "ACTIVE_GROUP"
+            ? ["OUT", "ACTIVE"].includes(r.status) && !isRentalOverdue(r)
+            : effectiveStatus === statusFilter);
+        // Filter periode berdasarkan tanggal keluar rental.
+        const pickup = r.pickup_date || "";
+        const okMonth = !monthFilter || pickup.slice(5, 7) === monthFilter;
+        const okYear = !yearFilter || pickup.slice(0, 4) === yearFilter;
+        return okS && okF && okMonth && okYear;
       })
-      // Prioritaskan rental yang jatuh temponya paling dekat; tanggal invalid tetap terlihat.
       .sort((a, b) => {
-        const aDue = a.due_date || "9999-12-31";
-        const bDue = b.due_date || "9999-12-31";
-        if (aDue !== bDue) return aDue.localeCompare(bDue);
-        return (b.pickup_date || "").localeCompare(a.pickup_date || "");
+        const fields = {
+          rental_number: (r) => r.rental_number || "",
+          customer: (r) => r.customer?.name || "",
+          pickup_date: (r) => r.pickup_date || "",
+          due_date: (r) => r.due_date || "",
+          total: (r) => Number(r.total || 0),
+          status: (r) => (isRentalOverdue(r) ? "OVERDUE" : r.status || ""),
+        };
+        const av = fields[sortBy](a);
+        const bv = fields[sortBy](b);
+        let cmp = typeof av === "number" && typeof bv === "number"
+          ? av - bv
+          : String(av).localeCompare(String(bv), "id", { numeric: true });
+        if (cmp === 0) cmp = (a.rental_number || "").localeCompare(b.rental_number || "");
+        return sortDirection === "asc" ? cmp : -cmp;
       });
-  }, [rentals, search, statusFilter]);
+  }, [rentals, search, statusFilter, monthFilter, yearFilter, sortBy, sortDirection]);
 
   const counts = useMemo(() => ({
     total: rentals.length,
@@ -259,6 +280,25 @@ export default function Rental() {
     },
   };
 
+  const rentalYears = [...new Set(rentals.map((r) => (r.pickup_date || "").slice(0, 4)).filter((y) => /^\\d{4}$/.test(y)))].sort((a, b) => b.localeCompare(a));
+  const monthOptions = [
+    ["01", "Januari"], ["02", "Februari"], ["03", "Maret"], ["04", "April"],
+    ["05", "Mei"], ["06", "Juni"], ["07", "Juli"], ["08", "Agustus"],
+    ["09", "September"], ["10", "Oktober"], ["11", "November"], ["12", "Desember"],
+  ];
+  const toggleSort = (field) => {
+    if (sortBy === field) setSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+    else {
+      setSortBy(field);
+      setSortDirection(field === "due_date" || field === "pickup_date" ? "asc" : "asc");
+    }
+  };
+  const sortLabel = (field, label) => (
+    <button type="button" onClick={() => toggleSort(field)} className="inline-flex items-center gap-1 font-semibold hover:text-[#E83E8C]">
+      {label}<span aria-hidden="true" className="text-[#E83E8C]">{sortBy === field ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</span>
+    </button>
+  );
+
   if (loading) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
@@ -270,22 +310,22 @@ export default function Rental() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-2xl border border-[#F3D9E4] bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-[#8E7884]">Total Rental</p>
+        <button type="button" onClick={() => { setStatusFilter(""); setSearch(""); setMonthFilter(""); setYearFilter(""); }} aria-pressed={!statusFilter && !search && !monthFilter && !yearFilter} className={`rounded-2xl border border-[#F3D9E4] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${!statusFilter ? "ring-2 ring-[#F3D9E4]" : ""}`}>
+          <p className="text-xs font-medium text-[#8E7884]">Total Rental · klik untuk semua</p>
           <p className="mt-2 text-2xl font-bold text-[#1F191E]">{counts.total}</p>
-        </div>
-        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
-          <p className="text-xs font-medium text-sky-700">Masih Disewa</p>
+        </button>
+        <button type="button" onClick={() => setStatusFilter((v) => v === "ACTIVE_GROUP" ? "" : "ACTIVE_GROUP")} aria-pressed={statusFilter === "ACTIVE_GROUP"} className={`rounded-2xl border border-sky-200 bg-sky-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${statusFilter === "ACTIVE" ? "ring-2 ring-sky-400" : ""}`}>
+          <p className="text-xs font-medium text-sky-700">Masih Disewa · klik untuk filter</p>
           <p className="mt-2 text-2xl font-bold text-sky-800">{counts.active}</p>
-        </div>
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
-          <p className="text-xs font-medium text-rose-700">Terlambat</p>
+        </button>
+        <button type="button" onClick={() => setStatusFilter((v) => v === "OVERDUE" ? "" : "OVERDUE")} aria-pressed={statusFilter === "OVERDUE"} className={`rounded-2xl border border-rose-200 bg-rose-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${statusFilter === "OVERDUE" ? "ring-2 ring-rose-400" : ""}`}>
+          <p className="text-xs font-medium text-rose-700">Terlambat · klik untuk filter</p>
           <p className="mt-2 text-2xl font-bold text-rose-800">{counts.overdue}</p>
-        </div>
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-          <p className="text-xs font-medium text-emerald-700">Sudah Kembali</p>
+        </button>
+        <button type="button" onClick={() => setStatusFilter((v) => v === "RETURNED" ? "" : "RETURNED")} aria-pressed={statusFilter === "RETURNED"} className={`rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${statusFilter === "RETURNED" ? "ring-2 ring-emerald-400" : ""}`}>
+          <p className="text-xs font-medium text-emerald-700">Sudah Kembali · klik untuk filter</p>
           <p className="mt-2 text-2xl font-bold text-emerald-800">{counts.returned}</p>
-        </div>
+        </button>
       </div>
 
       {counts.dateIssues > 0 && (
@@ -309,7 +349,7 @@ export default function Rental() {
             />
 
             <NativeSelect
-              value={statusFilter}
+              value={statusFilter === "ACTIVE_GROUP" ? "" : statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               placeholder="Semua Status"
               options={[
@@ -322,33 +362,41 @@ export default function Rental() {
               ]}
               className="sm:w-64"
             />
+            <select aria-label="Filter bulan tanggal keluar" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="h-10 rounded-lg border border-[#F3D9E4] bg-white px-3 text-sm text-[#40353B] focus:border-[#E83E8C] focus:outline-none">
+              <option value="">Semua Bulan</option>
+              {monthOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <select aria-label="Filter tahun tanggal keluar" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="h-10 rounded-lg border border-[#F3D9E4] bg-white px-3 text-sm text-[#40353B] focus:border-[#E83E8C] focus:outline-none">
+              <option value="">Semua Tahun</option>
+              {rentalYears.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
           </div>
-          {(search || statusFilter) && (
-            <Btn variant="outline" onClick={() => { setSearch(""); setStatusFilter(""); }}>
+          {(search || statusFilter || monthFilter || yearFilter) && (
+            <Btn variant="outline" onClick={() => { setSearch(""); setStatusFilter(""); setMonthFilter(""); setYearFilter(""); }}>
               Reset Filter
             </Btn>
           )}
         </div>
         <div className="mb-3 flex items-center justify-between gap-3 text-xs text-[#8E7884]">
           <span>Menampilkan {filtered.length} dari {rentals.length} rental</span>
-          <span>Urutan: jatuh tempo terdekat</span>
+          <span>Urutan: {sortBy === "due_date" ? "jatuh tempo" : sortBy === "pickup_date" ? "tanggal keluar" : sortBy === "customer" ? "pelanggan" : sortBy === "total" ? "total" : sortBy === "status" ? "status" : "nomor rental"} ({sortDirection === "asc" ? "naik" : "turun"})</span>
         </div>
 
         {filtered.length === 0 ? (
           <EmptyState
-            title={search || statusFilter ? "Tidak ada rental yang cocok" : "Belum ada rental"}
-            subtitle={search || statusFilter ? "Coba ubah pencarian atau reset filter." : "Rental dibuat dari checkout booking atau POS."}
+            title={search || statusFilter || monthFilter || yearFilter ? "Tidak ada rental yang cocok" : "Belum ada rental"}
+            subtitle={search || statusFilter || monthFilter || yearFilter ? "Coba ubah pencarian, bulan/tahun, atau reset filter." : "Rental dibuat dari checkout booking atau POS."}
           />
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>No.</Th>
-                <Th>Pelanggan</Th>
-                <Th>Keluar</Th>
-                <Th>Jatuh Tempo</Th>
-                <Th>Total</Th>
-                <Th>Status</Th>
+                <Th>{sortLabel("rental_number", "No.")}</Th>
+                <Th>{sortLabel("customer", "Pelanggan")}</Th>
+                <Th>{sortLabel("pickup_date", "Keluar")}</Th>
+                <Th>{sortLabel("due_date", "Jatuh Tempo")}</Th>
+                <Th>{sortLabel("total", "Total")}</Th>
+                <Th>{sortLabel("status", "Status")}</Th>
                 <Th className="text-right">Aksi</Th>
               </tr>
             </thead>
