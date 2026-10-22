@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAsync } from "@/lib/hooks";
 import {
@@ -87,6 +87,8 @@ export default function Booking() {
 
   const [modal, setModal] = useState(false);
   const [detail, setDetail] = useState(null);
+  // Detail item kebaya untuk kartu kalender; listBookings bisa tidak menyertakan items.
+  const [calendarBookingDetails, setCalendarBookingDetails] = useState({});
 
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -183,6 +185,11 @@ export default function Booking() {
         }
 
         return okS && okF && okPeriod;
+      }).sort((a, b) => {
+        // Urutkan booking berdasarkan tanggal mulai sewa paling awal.
+        const dateA = String(a.start_date || "9999-12-31").slice(0, 10);
+        const dateB = String(b.start_date || "9999-12-31").slice(0, 10);
+        return dateA.localeCompare(dateB) || String(a.booking_number || "").localeCompare(String(b.booking_number || ""));
       }),
     [bookings, search, statusFilter, listMonth, listYear]
   );
@@ -214,7 +221,8 @@ export default function Booking() {
       }
       return true;
     });
-    }, [bookings, calendarProduct]);
+  }, [bookings, calendarProduct]);
+
   const calendarDays = useMemo(() => {
     const year = Number(calendarYear);
     const monthIndex = Number(calendarMonth);
@@ -244,6 +252,37 @@ export default function Booking() {
       return start && end && start <= selectedCalendarDate && end >= selectedCalendarDate;
     });
   }, [calendarBookings, selectedCalendarDate]);
+
+  // Ambil detail penuh per booking agar nama kebaya muncul walau listBookings hanya mengembalikan ringkasan.
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedDateBookings.length) return undefined;
+
+    const missing = selectedDateBookings.filter((b) => !calendarBookingDetails[b.id]);
+    if (!missing.length) return undefined;
+
+    Promise.all(
+      missing.map(async (b) => {
+        try {
+          const full = await getBooking(b.id);
+          return [b.id, full];
+        } catch {
+          return [b.id, null];
+        }
+      })
+    ).then((entries) => {
+      if (cancelled) return;
+      setCalendarBookingDetails((prev) => {
+        const next = { ...prev };
+        for (const [id, full] of entries) {
+          if (full) next[id] = full;
+        }
+        return next;
+      });
+    });
+
+    return () => { cancelled = true; };
+  }, [selectedDateBookings, calendarBookingDetails]);
 
   /* ------------------------------------------------------------------
      SHIPPING
@@ -1387,7 +1426,7 @@ export default function Booking() {
                         <p className="text-xs text-[#7A6A75] mt-1">{b.booking_number} · {formatDateShort(b.start_date)} — {formatDateShort(b.end_date)}</p>
                         <p className="text-xs text-[#7A6A75] mt-1">
                           <span className="font-semibold">Kebaya: </span>
-                          {getBookingProductNames(b).join(", ") || "Detail kebaya tidak tersedia pada data booking"}
+                          {getBookingProductNames({ ...b, ...(calendarBookingDetails[b.id] || {}) }).join(", ") || "Memuat detail kebaya…"}
                         </p>
                       </div>
                       <StatusBadge status={b.status} />
