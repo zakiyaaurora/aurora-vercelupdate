@@ -128,6 +128,9 @@ export default function Booking() {
   });
 
   const [form, setForm] = useState(emptyForm());
+  // Searchable kebaya/product picker per item row.
+  const [productPickerSearches, setProductPickerSearches] = useState({});
+  const [openProductPicker, setOpenProductPicker] = useState(null);
 
   const calendarDateKey = (date) => {
     const d = new Date(date);
@@ -1676,7 +1679,7 @@ export default function Booking() {
             ? "Ubah Booking"
             : "Buat Booking Baru"
         }
-        size="xl"
+        size="2xl"
         footer={
           <>
             <Btn
@@ -2144,27 +2147,81 @@ export default function Booking() {
                 })()}
 
                 <Field
-                  label="Produk"
+                  label="Cari & Pilih Kebaya"
                   className="sm:col-span-5"
                 >
-                  <NativeSelect
-                    value={
-                      it.product_id
-                    }
-                    onChange={(e) =>
-                      onPickProduct(
-                        idx,
-                        e.target.value
-                      )
-                    }
-                    placeholder="Pilih"
-                    options={products.map(
-                      (p) => ({
-                        value: p.id,
-                        label: p.name,
-                      })
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={
+                        openProductPicker === idx
+                          ? (productPickerSearches[idx] ?? "")
+                          : (products.find((p) => p.id === it.product_id)?.name || "")
+                      }
+                      onFocus={() => {
+                        setOpenProductPicker(idx);
+                        setProductPickerSearches((prev) => ({ ...prev, [idx]: "" }));
+                      }}
+                      onChange={(e) => {
+                        setOpenProductPicker(idx);
+                        setProductPickerSearches((prev) => ({ ...prev, [idx]: e.target.value }));
+                      }}
+                      placeholder="Ketik nama kebaya atau kode produk..."
+                      autoComplete="off"
+                      aria-label={`Cari kebaya item ${idx + 1}`}
+                      className="w-full rounded-xl border border-[#F3C8D9] bg-white px-4 py-3 text-sm text-[#1F191E] outline-none transition placeholder:text-[#A18895] focus:border-[#E83E8C] focus:ring-2 focus:ring-[#FCE4EC]"
+                    />
+                    {openProductPicker === idx && (
+                      <div className="relative z-20 mt-2 overflow-hidden rounded-xl border border-[#F3D9E4] bg-white shadow-lg">
+                        <div className="border-b border-[#FCE4EC] bg-[#FFF7FA] px-3 py-2 text-xs text-[#7A6A75]">
+                          {(products.filter((p) => {
+                            const q = (productPickerSearches[idx] || "").trim().toLowerCase();
+                            return !q || `${p.name || ""} ${p.product_code || ""}`.toLowerCase().includes(q);
+                          })).length} produk ditemukan · pilih kebaya
+                        </div>
+                        <div className="max-h-64 overflow-y-auto p-2">
+                          {products.filter((p) => {
+                            const q = (productPickerSearches[idx] || "").trim().toLowerCase();
+                            return !q || `${p.name || ""} ${p.product_code || ""}`.toLowerCase().includes(q);
+                          }).map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                onPickProduct(idx, p.id);
+                                setProductPickerSearches((prev) => ({ ...prev, [idx]: p.name || "" }));
+                                setOpenProductPicker(null);
+                              }}
+                              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-[#FFF1F7] ${it.product_id === p.id ? "bg-[#FFF1F7] ring-1 ring-[#F4A7C7]" : ""}`}
+                            >
+                              <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg border border-[#FCE4EC] bg-[#FFF7FA]">
+                                {p.photo_url ? (
+                                  <img src={p.photo_url} alt={p.name || "Kebaya"} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                                ) : (
+                                  <PackageCheck className="h-5 w-5 text-[#E8B4C9]" />
+                                )}
+                              </div>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold text-[#1F191E]">{p.name}</span>
+                                <span className="mt-0.5 block text-xs text-[#7A6A75]">
+                                  {p.product_code ? `Kode: ${p.product_code} · ` : ""}{formatRupiah(p.rental_price || 0)}
+                                </span>
+                              </span>
+                              {it.product_id === p.id && <span className="text-xs font-semibold text-[#E83E8C]">Dipilih</span>}
+                            </button>
+                          ))}
+                          {products.filter((p) => {
+                            const q = (productPickerSearches[idx] || "").trim().toLowerCase();
+                            return !q || `${p.name || ""} ${p.product_code || ""}`.toLowerCase().includes(q);
+                          }).length === 0 && (
+                            <p className="px-3 py-6 text-center text-sm text-[#7A6A75]">Kebaya tidak ditemukan. Coba kata kunci lain.</p>
+                          )}
+                        </div>
+                        <button type="button" onClick={() => setOpenProductPicker(null)} className="w-full border-t border-[#FCE4EC] px-3 py-2 text-xs font-medium text-[#E83E8C] hover:bg-[#FFF7FA]">Tutup pilihan</button>
+                      </div>
                     )}
-                  />
+                  </div>
                 </Field>
 
                 <Field
