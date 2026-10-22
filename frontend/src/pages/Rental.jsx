@@ -79,6 +79,17 @@ const getReturnStatusMeta = (status) =>
   RETURN_STATUS_OPTIONS.find((item) => item.value === status) ||
   RETURN_STATUS_OPTIONS[0];
 
+const isRentalOverdue = (r) =>
+  ["OUT", "ACTIVE", "OVERDUE", "LATE"].includes(r.status) &&
+  Boolean(r.due_date) &&
+  r.due_date < todayISO() &&
+  !r.actual_return_date;
+
+// Deteksi saja; jangan mengubah tanggal sumber secara otomatis.
+const hasInvalidRentalDateOrder = (r) =>
+  Boolean(r.pickup_date && r.due_date) &&
+  r.due_date < r.pickup_date;
+
 export default function Rental() {
   const { data, loading, error, reload } = useAsync(listRentals, []);
   const [search, setSearch] = useState("");
@@ -95,29 +106,39 @@ export default function Rental() {
 
   const rentals = useMemo(() => data || [], [data]);
 
-  const filtered = useMemo(
-    () =>
-      rentals.filter((r) => {
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rentals
+      .filter((r) => {
         const okS =
-          !search ||
-          (r.rental_number || "")
-            .toLowerCase()
-            .includes(search.toLowerCase()) ||
-          (r.customer?.name || "")
-            .toLowerCase()
-            .includes(search.toLowerCase());
-
-        const okF = !statusFilter || r.status === statusFilter;
-
+          !q ||
+          (r.rental_number || "").toLowerCase().includes(q) ||
+          (r.customer?.name || "").toLowerCase().includes(q) ||
+          (r.customer?.phone || "").toLowerCase().includes(q) ||
+          (r.items || []).some((it) =>
+            (it.product?.name || "").toLowerCase().includes(q) ||
+            (it.inventory?.sku || "").toLowerCase().includes(q)
+          );
+        const effectiveStatus = isRentalOverdue(r) ? "OVERDUE" : r.status;
+        const okF = !statusFilter || effectiveStatus === statusFilter;
         return okS && okF;
-      }),
-    [rentals, search, statusFilter]
-  );
+      })
+      // Prioritaskan rental yang jatuh temponya paling dekat; tanggal invalid tetap terlihat.
+      .sort((a, b) => {
+        const aDue = a.due_date || "9999-12-31";
+        const bDue = b.due_date || "9999-12-31";
+        if (aDue !== bDue) return aDue.localeCompare(bDue);
+        return (b.pickup_date || "").localeCompare(a.pickup_date || "");
+      });
+  }, [rentals, search, statusFilter]);
 
-  const isOverdue = (r) =>
-    ["OUT", "ACTIVE"].includes(r.status) &&
-    r.due_date < todayISO() &&
-    !r.actual_return_date;
+  const counts = useMemo(() => ({
+    total: rentals.length,
+    active: rentals.filter((r) => ["OUT", "ACTIVE"].includes(r.status) && !isRentalOverdue(r)).length,
+    overdue: rentals.filter(isRentalOverdue).length,
+    returned: rentals.filter((r) => r.status === "RETURNED").length,
+    dateIssues: rentals.filter(hasInvalidRentalDateOrder).length,
+  }), [rentals]);
 
   const viewDetail = async (r) => {
     try {
@@ -245,38 +266,78 @@ export default function Rental() {
     <div data-testid="rental-page" className="space-y-5">
       <PageHeader
         title="Manajemen Rental"
-        subtitle={`${rentals.length} rental`}
+        subtitle={`${counts.total} rental · diurutkan berdasarkan jatuh tempo terdekat`}
       />
 
-      <SectionCard>
-        <div className="flex flex-col sm:flex-row gap-3 mb-4">
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Cari nomor / pelanggan…"
-            testid="rental-search"
-          />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="rounded-2xl border border-[#F3D9E4] bg-white p-4 shadow-sm">
+          <p className="text-xs font-medium text-[#8E7884]">Total Rental</p>
+          <p className="mt-2 text-2xl font-bold text-[#1F191E]">{counts.total}</p>
+        </div>
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
+          <p className="text-xs font-medium text-sky-700">Masih Disewa</p>
+          <p className="mt-2 text-2xl font-bold text-sky-800">{counts.active}</p>
+        </div>
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
+          <p className="text-xs font-medium text-rose-700">Terlambat</p>
+          <p className="mt-2 text-2xl font-bold text-rose-800">{counts.overdue}</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+          <p className="text-xs font-medium text-emerald-700">Sudah Kembali</p>
+          <p className="mt-2 text-2xl font-bold text-emerald-800">{counts.returned}</p>
+        </div>
+      </div>
 
-          <NativeSelect
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            placeholder="Semua Status"
-            options={[
-              "OUT",
-              "ACTIVE",
-              "OVERDUE",
-              "LATE",
-              "RETURNED",
-              "CANCELLED",
-            ]}
-            className="sm:w-48"
-          />
+      {counts.dateIssues > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">Ada {counts.dateIssues} data tanggal yang perlu diperiksa</p>
+            <p className="mt-1 text-xs leading-5">Tanggal jatuh tempo tercatat sebelum tanggal keluar. Data tidak diubah otomatis; periksa detail rental dan sumber transaksinya.</p>
+          </div>
+        </div>
+      )}
+
+      <SectionCard>
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Cari nomor, pelanggan, nama kebaya, atau SKU…"
+              testid="rental-search"
+            />
+
+            <NativeSelect
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              placeholder="Semua Status"
+              options={[
+                "OUT",
+                "ACTIVE",
+                "OVERDUE",
+                "LATE",
+                "RETURNED",
+                "CANCELLED",
+              ]}
+              className="sm:w-64"
+            />
+          </div>
+          {(search || statusFilter) && (
+            <Btn variant="outline" onClick={() => { setSearch(""); setStatusFilter(""); }}>
+              Reset Filter
+            </Btn>
+          )}
+        </div>
+        <div className="mb-3 flex items-center justify-between gap-3 text-xs text-[#8E7884]">
+          <span>Menampilkan {filtered.length} dari {rentals.length} rental</span>
+          <span>Urutan: jatuh tempo terdekat</span>
         </div>
 
         {filtered.length === 0 ? (
           <EmptyState
-            title="Belum ada rental"
-            subtitle="Rental dibuat dari checkout booking atau POS."
+            title={search || statusFilter ? "Tidak ada rental yang cocok" : "Belum ada rental"}
+            subtitle={search || statusFilter ? "Coba ubah pencarian atau reset filter." : "Rental dibuat dari checkout booking atau POS."}
           />
         ) : (
           <Table>
@@ -312,7 +373,17 @@ export default function Rental() {
                   </Td>
 
                   <Td className="text-xs">
-                    {formatDateShort(r.due_date)}
+                    <div className={isRentalOverdue(r) ? "font-semibold text-rose-700" : ""}>
+                      {formatDateShort(r.due_date)}
+                    </div>
+                    {hasInvalidRentalDateOrder(r) && (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800" title="Jatuh tempo lebih awal dari tanggal keluar">
+                        <AlertTriangle className="h-3 w-3" /> Cek tanggal
+                      </span>
+                    )}
+                    {isRentalOverdue(r) && (
+                      <span className="mt-1 block text-[10px] font-semibold text-rose-600">Terlambat</span>
+                    )}
                   </Td>
 
                   <Td className="font-semibold">
@@ -321,7 +392,7 @@ export default function Rental() {
 
                   <Td>
                     <StatusBadge
-                      status={isOverdue(r) ? "OVERDUE" : r.status}
+                      status={isRentalOverdue(r) ? "OVERDUE" : r.status}
                     />
                   </Td>
 
@@ -811,7 +882,7 @@ export default function Rental() {
               <tbody>
                 {(detail.items || []).map((it) => (
                   <tr key={it.id}>
-                    <Td>{it.product?.name}</Td>
+                    <Td className="font-medium">{it.product?.name || "Nama produk tidak tersedia"}</Td>
                     <Td className="font-mono text-xs">
                       {it.inventory?.sku || "-"}
                     </Td>
