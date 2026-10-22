@@ -74,6 +74,7 @@ export default function Booking() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [bookingSort, setBookingSort] = useState("date-asc");
   // Filter tambahan untuk tabel daftar booking
   const [listMonth, setListMonth] = useState("");
   const [listYear, setListYear] = useState("");
@@ -84,6 +85,7 @@ export default function Booking() {
   const [calendarYear, setCalendarYear] = useState(String(now.getFullYear()));
   const [calendarProduct, setCalendarProduct] = useState("");
   const [selectedCalendarDate, setSelectedCalendarDate] = useState("");
+  const [showCalendarPopup, setShowCalendarPopup] = useState(false);
 
   const [modal, setModal] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -188,14 +190,20 @@ export default function Booking() {
         }
 
         return okS && okF && okPeriod;
-      }).sort((a, b) => {
-        // Urutkan booking berdasarkan tanggal mulai sewa paling awal.
-        const dateA = String(a.start_date || "9999-12-31").slice(0, 10);
-        const dateB = String(b.start_date || "9999-12-31").slice(0, 10);
-        return dateA.localeCompare(dateB) || String(a.booking_number || "").localeCompare(String(b.booking_number || ""));
       }),
     [bookings, search, statusFilter, listMonth, listYear]
   );
+
+  const sortedBookings = useMemo(() => [...filtered].sort((a, b) => {
+    const dateA = String(a.start_date || "9999-12-31").slice(0, 10);
+    const dateB = String(b.start_date || "9999-12-31").slice(0, 10);
+    let result = 0;
+    if (bookingSort.startsWith("date")) result = dateA.localeCompare(dateB);
+    else if (bookingSort.startsWith("customer")) result = String(a.customer?.name || "").localeCompare(String(b.customer?.name || ""), "id");
+    else if (bookingSort.startsWith("number")) result = String(a.booking_number || "").localeCompare(String(b.booking_number || ""));
+    else if (bookingSort.startsWith("status")) result = String(a.status || "").localeCompare(String(b.status || ""));
+    return bookingSort.endsWith("desc") ? -result : result;
+  }), [filtered, bookingSort]);
 
   const getBookingItems = (booking) => {
     if (Array.isArray(booking?.items) && booking.items.length) return booking.items;
@@ -1326,9 +1334,33 @@ export default function Booking() {
         }
       />
 
-      {/* ============================================================
-          KALENDER BOOKING + FILTER
-      ============================================================ */}
+      {/* KALENDER DIBUKA DALAM POPUP AGAR DAFTAR BOOKING LEBIH RINGKAS */}
+      <SectionCard>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FFF0F6] text-[#E83E8C]">
+              <CalendarDays className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-[#1F191E]">Kalender Booking Kebaya</h2>
+              <p className="text-xs text-[#7A6A75] mt-1">Buka kalender untuk melihat jadwal dan booking per tanggal.</p>
+            </div>
+          </div>
+          <Btn onClick={() => setShowCalendarPopup(true)}><CalendarDays className="h-4 w-4" /> Buka Kalender</Btn>
+        </div>
+      </SectionCard>
+
+      {showCalendarPopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3 sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowCalendarPopup(false); }}>
+          <div role="dialog" aria-modal="true" aria-label="Kalender Booking Kebaya" className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#F3D9E4] px-5 py-4">
+              <div>
+                <h2 className="font-semibold text-lg text-[#1F191E]">Kalender Booking Kebaya</h2>
+                <p className="text-xs text-[#7A6A75] mt-1">Pilih kebaya, bulan, tahun, lalu klik tanggal.</p>
+              </div>
+              <button type="button" onClick={() => setShowCalendarPopup(false)} className="rounded-lg border border-[#F3D9E4] px-3 py-2 text-sm hover:bg-[#FFF5F8]">Tutup ✕</button>
+            </div>
+            <div className="overflow-y-auto p-4 sm:p-5">
       <SectionCard>
         <div className="flex items-start gap-3 mb-4">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FFF0F6] text-[#E83E8C]">
@@ -1416,9 +1448,11 @@ export default function Booking() {
             ) : (
               <div className="space-y-2">
                 {selectedDateBookings.map((b) => (
-                  <button
+                  <div
                     key={b.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter") viewDetail(b); }}
                     onClick={() => viewDetail(b)}
                     className="w-full rounded-lg border border-[#F3D9E4] bg-white p-3 text-left hover:border-[#E83E8C] transition"
                   >
@@ -1433,14 +1467,30 @@ export default function Booking() {
                       </div>
                       <StatusBadge status={b.status} />
                     </div>
-                    <p className="text-[11px] text-[#E83E8C] mt-2">Klik untuk membuka detail booking</p>
-                  </button>
+                    <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                      {b.status === "PENDING" && (
+                        <Btn className="py-1.5" onClick={() => changeStatus(b, "CONFIRMED")}> <CheckCircle2 className="h-4 w-4" /> Confirm </Btn>
+                      )}
+                      {["CONFIRMED", "READY", "PAID"].includes(b.status) && (
+                        <Btn className="py-1.5" onClick={() => doCheckout(b)}><PackageCheck className="h-4 w-4" /> Rented / Checkout</Btn>
+                      )}
+                      {b.status === "RENTED" && (
+                        <Btn variant="outline" className="py-1.5" onClick={() => { setShowCalendarPopup(false); nav("/rental"); }}>Proses Return di Manajemen Rental</Btn>
+                      )}
+                      <Btn variant="outline" className="py-1.5" onClick={() => viewDetail(b)}><Eye className="h-4 w-4" /> Detail</Btn>
+                    </div>
+                    <p className="text-[11px] text-[#E83E8C] mt-2">Aksi mengikuti status booking. Pengembalian dibuka melalui Manajemen Rental agar stok dan status CUCI tetap diperbarui dengan benar.</p>
+                  </div>
                 ))}
               </div>
             )}
           </div>
         )}
       </SectionCard>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============================================================
           LIST BOOKING
@@ -1492,6 +1542,22 @@ export default function Booking() {
             className="sm:w-48"
           />
 
+          <NativeSelect
+            value={bookingSort}
+            onChange={(e) => setBookingSort(e.target.value)}
+            options={[
+              { value: "date-asc", label: "Tanggal sewa: terdekat" },
+              { value: "date-desc", label: "Tanggal sewa: terbaru" },
+              { value: "customer-asc", label: "Pelanggan: A–Z" },
+              { value: "customer-desc", label: "Pelanggan: Z–A" },
+              { value: "number-asc", label: "Nomor booking: naik" },
+              { value: "number-desc", label: "Nomor booking: turun" },
+              { value: "status-asc", label: "Status: A–Z" },
+              { value: "status-desc", label: "Status: Z–A" },
+            ]}
+            className="sm:w-52"
+          />
+
         </div>
 
         {filtered.length === 0 ? (
@@ -1514,7 +1580,7 @@ export default function Booking() {
             </thead>
 
             <tbody>
-              {filtered.map((b) => (
+              {sortedBookings.map((b) => (
                 <tr
                   key={b.id}
                   className="hover:bg-[#FEFCFD]"
@@ -1679,7 +1745,7 @@ export default function Booking() {
             ? "Ubah Booking"
             : "Buat Booking Baru"
         }
-        size="xl"
+        size="2xl"
         footer={
           <>
             <Btn
