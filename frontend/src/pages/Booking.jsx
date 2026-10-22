@@ -1542,7 +1542,9 @@ export default function Booking() {
             className="sm:w-48"
           />
 
-          <NativeSelect
+          <div className="flex min-w-0 flex-col gap-1 sm:w-52">
+            <span className="text-[11px] font-medium text-[#A18895]">Urutkan daftar</span>
+            <NativeSelect
             value={bookingSort}
             onChange={(e) => setBookingSort(e.target.value)}
             options={[
@@ -1555,8 +1557,9 @@ export default function Booking() {
               { value: "status-asc", label: "Status: A–Z" },
               { value: "status-desc", label: "Status: Z–A" },
             ]}
-            className="sm:w-52"
-          />
+            className="w-full"
+            />
+          </div>
 
         </div>
 
@@ -1680,7 +1683,7 @@ export default function Booking() {
                           data-testid={`booking-checkout-${b.id}`}
                         >
                           <PackageCheck className="h-4 w-4" />
-                          Checkout
+                          Rented / Checkout
                         </Btn>
                       )}
 
@@ -1698,6 +1701,20 @@ export default function Booking() {
                           }
                         >
                           <CheckCircle2 className="h-4 w-4" />
+                          Confirm
+                        </Btn>
+                      )}
+
+                      {/* RETURN: gunakan alur Manajemen Rental agar stok/CUCI diproses dengan benar */}
+                      {b.status === "RENTED" && (
+                        <Btn
+                          variant="outline"
+                          className="px-2.5 py-1.5"
+                          onClick={() => nav("/rental")}
+                          title="Buka Manajemen Rental untuk memproses pengembalian"
+                          data-testid={`booking-return-${b.id}`}
+                        >
+                          Return
                         </Btn>
                       )}
 
@@ -1733,45 +1750,26 @@ export default function Booking() {
           CREATE / EDIT MODAL
       ============================================================ */}
 
-      <Modal
-        open={modal}
-        onClose={() => {
-          if (!saving) {
-            setModal(false);
-          }
-        }}
-        title={
-          editing
-            ? "Ubah Booking"
-            : "Buat Booking Baru"
-        }
-        size="2xl"
-        footer={
-          <>
-            <Btn
-              variant="outline"
-              onClick={() =>
-                setModal(false)
-              }
-              disabled={saving}
-            >
-              Batal
-            </Btn>
-
-            <Btn
-              onClick={save}
-              loading={saving}
-              data-testid="booking-save-btn"
-            >
-              {editing
-                ? "Simpan Perubahan"
-                : "Simpan Booking"}{" "}
-              ({formatRupiah(total)})
-            </Btn>
-          </>
-        }
-      >
-
+      {modal && (
+        <div
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !saving) setModal(false);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="booking-form-title"
+            className="flex max-h-[96vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+          >
+            <header className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b border-[#F3D9E4] bg-white px-5 py-4 sm:px-7">
+              <h2 id="booking-form-title" className="text-xl font-semibold text-[#1F191E] sm:text-2xl">
+                {editing ? "Ubah Booking" : "Buat Booking Baru"}
+              </h2>
+              <button type="button" onClick={() => !saving && setModal(false)} disabled={saving} aria-label="Tutup form booking" className="rounded-lg px-3 py-2 text-[#7A6A75] hover:bg-[#FFF5F8] disabled:opacity-50">✕</button>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-7">
         {/* CUSTOMER + DATES */}
         <div className="grid sm:grid-cols-3 gap-4">
 
@@ -2464,7 +2462,16 @@ export default function Booking() {
 
         </div>
 
-      </Modal>
+            </div>
+            <footer className="sticky bottom-0 z-10 flex shrink-0 flex-wrap justify-end gap-3 border-t border-[#F3D9E4] bg-white px-5 py-4 sm:px-7">
+              <Btn variant="outline" onClick={() => setModal(false)} disabled={saving}>Batal</Btn>
+              <Btn onClick={save} loading={saving} data-testid="booking-save-btn">
+                {editing ? "Simpan Perubahan" : "Simpan Booking"} ({formatRupiah(total)})
+              </Btn>
+            </footer>
+          </section>
+        </div>
+      )}
 
       {/* ============================================================
           DETAIL MODAL
