@@ -1679,7 +1679,7 @@ export default function Booking() {
             ? "Ubah Booking"
             : "Buat Booking Baru"
         }
-        size="2xl"
+        size="xl"
         footer={
           <>
             <Btn
