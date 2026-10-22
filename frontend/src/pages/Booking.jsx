@@ -253,19 +253,20 @@ export default function Booking() {
     });
   }, [calendarBookings, selectedCalendarDate]);
 
-  // Ambil detail penuh per booking agar nama kebaya muncul walau listBookings hanya mengembalikan ringkasan.
+  // Ambil detail penuh untuk booking kalender dan tabel agar nama kebaya muncul
+  // meskipun listBookings hanya mengembalikan ringkasan tanpa items.
   useEffect(() => {
     let cancelled = false;
-    if (!selectedDateBookings.length) return undefined;
-
-    const missing = selectedDateBookings.filter((b) => !calendarBookingDetails[b.id]);
+    const targets = [...selectedDateBookings, ...filtered];
+    const uniqueTargets = [...new Map(targets.filter((b) => b?.id).map((b) => [b.id, b])).values()];
+    const missing = uniqueTargets.filter((b) => !(b.id in calendarBookingDetails));
     if (!missing.length) return undefined;
 
     Promise.all(
       missing.map(async (b) => {
         try {
           const full = await getBooking(b.id);
-          return [b.id, full];
+          return [b.id, full || null];
         } catch {
           return [b.id, null];
         }
@@ -274,15 +275,13 @@ export default function Booking() {
       if (cancelled) return;
       setCalendarBookingDetails((prev) => {
         const next = { ...prev };
-        for (const [id, full] of entries) {
-          if (full) next[id] = full;
-        }
+        for (const [id, full] of entries) next[id] = full;
         return next;
       });
     });
 
     return () => { cancelled = true; };
-  }, [selectedDateBookings, calendarBookingDetails]);
+  }, [selectedDateBookings, filtered, calendarBookingDetails]);
 
   /* ------------------------------------------------------------------
      SHIPPING
@@ -1523,8 +1522,15 @@ export default function Booking() {
                   </Td>
 
                   <Td className="font-medium text-[#1F191E]">
-                    {b.customer?.name ||
-                      "-"}
+                    <div>{b.customer?.name || "-"}</div>
+                    <div className="mt-1 max-w-[260px] whitespace-normal text-[11px] font-normal leading-4 text-[#7A6A75]">
+                      <span className="font-semibold text-[#E83E8C]">Kebaya: </span>
+                      {getBookingProductNames({ ...b, ...(calendarBookingDetails[b.id] || {}) }).join(", ") || (
+                        calendarBookingDetails[b.id] === null
+                          ? "Detail kebaya tidak tersedia"
+                          : "Memuat detail kebaya…"
+                      )}
+                    </div>
                   </Td>
 
                   <Td className="text-xs">
