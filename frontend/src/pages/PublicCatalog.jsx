@@ -164,6 +164,23 @@ function RequestForm({ product, initialStart, initialEnd, onClose }) {
         terms_accepted: true,
       };
 
+      // Cek ulang stok sesuai tanggal yang dipilih di formulir.
+      // Pengajuan tidak mengunci stok; ini hanya validasi sebelum disimpan.
+      const latestAvailability = await checkAvailability(
+        product.id,
+        form.rental_start_date,
+        form.rental_end_date
+      );
+
+      if (
+        !latestAvailability ||
+        Number(latestAvailability.available) <= 0
+      ) {
+        throw new Error(
+          "Maaf, kebaya sudah tidak tersedia pada tanggal yang dipilih. Silakan pilih tanggal lain."
+        );
+      }
+
       const result = await submitCustomerRequest(payload);
 
       if (result?.success === false) {
@@ -667,9 +684,14 @@ export default function PublicCatalog() {
     range.start && range.end && range.end >= range.start;
 
   const runAvailability = useCallback(async () => {
-    if (!rangeValid) return;
+    if (!rangeValid) {
+      setAvail({});
+      return;
+    }
 
     setChecking(true);
+    // Jangan gunakan hasil ketersediaan dari rentang tanggal sebelumnya.
+    setAvail({});
     try {
       const rows = await catalogAvailability(range.start, range.end);
       const map = {};
@@ -678,6 +700,7 @@ export default function PublicCatalog() {
       });
       setAvail(map);
     } catch (e) {
+      setAvail({});
       toast.error(e.message || "Gagal cek ketersediaan");
     } finally {
       setChecking(false);
@@ -754,6 +777,20 @@ export default function PublicCatalog() {
   );
 
   const openRequest = (product) => {
+    const availability = avail[product.id];
+
+    if (checking || !availability) {
+      toast.error("Silakan tunggu pengecekan ketersediaan selesai.");
+      return;
+    }
+
+    if (Number(availability.available) <= 0) {
+      toast.error(
+        "Maaf, kebaya sudah tidak tersedia pada tanggal yang dipilih. Silakan pilih tanggal lain."
+      );
+      return;
+    }
+
     setRequestProduct(product);
   };
 
@@ -824,7 +861,8 @@ export default function PublicCatalog() {
                 type="date"
                 value={range.start}
                 min={todayISO()}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setAvail({});
                   setRange((current) => ({
                     ...current,
                     start: e.target.value,
@@ -832,8 +870,8 @@ export default function PublicCatalog() {
                       current.end < e.target.value
                         ? e.target.value
                         : current.end,
-                  }))
-                }
+                  }));
+                }}
                 data-testid="public-start-date"
               />
             </Field>
@@ -842,12 +880,13 @@ export default function PublicCatalog() {
                 type="date"
                 value={range.end}
                 min={range.start}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setAvail({});
                   setRange((current) => ({
                     ...current,
                     end: e.target.value,
-                  }))
-                }
+                  }));
+                }}
                 data-testid="public-end-date"
               />
             </Field>
@@ -929,30 +968,49 @@ export default function PublicCatalog() {
               className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
               data-testid="public-product-grid"
             >
-              {filtered.map((product) => (
-                <div key={product.id} className="flex min-w-0 flex-col">
-                  <CatalogCard
-                    product={product}
-                    avail={avail[product.id]}
-                    checking={checkingId === product.id}
-                    publicMode
-                    onCheck={checkOne}
-                    onSchedule={(selectedProduct) =>
-                      setSchedule(selectedProduct)
-                    }
-                  />
+              {filtered.map((product) => {
+                const availability = avail[product.id];
+                const canRequest =
+                  !checking &&
+                  !!availability &&
+                  Number(availability.available) > 0;
 
-                  <button
-                    type="button"
-                    onClick={() => openRequest(product)}
-                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#E83E8C] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#D62B78] focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-2"
-                    data-testid={`request-rental-${product.id}`}
-                  >
-                    <ClipboardList className="h-4 w-4" />
-                    Ajukan Sewa
-                  </button>
-                </div>
-              ))}
+                return (
+                  <div key={product.id} className="flex min-w-0 flex-col">
+                    <CatalogCard
+                      product={product}
+                      avail={availability}
+                      checking={checkingId === product.id}
+                      publicMode
+                      onCheck={checkOne}
+                      onSchedule={(selectedProduct) =>
+                        setSchedule(selectedProduct)
+                      }
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => openRequest(product)}
+                      disabled={!canRequest}
+                      className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-2 ${
+                        canRequest
+                          ? "bg-[#E83E8C] text-white hover:bg-[#D62B78]"
+                          : "cursor-not-allowed bg-gray-200 text-gray-500"
+                      }`}
+                      data-testid={`request-rental-${product.id}`}
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      {checking
+                        ? "Memeriksa..."
+                        : !availability
+                        ? "Menunggu pengecekan"
+                        : Number(availability.available) > 0
+                        ? "Ajukan Sewa"
+                        : "Tidak Tersedia"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
