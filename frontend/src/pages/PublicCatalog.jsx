@@ -683,7 +683,7 @@ export default function PublicCatalog() {
   const rangeValid =
     range.start && range.end && range.end >= range.start;
 
-  const runAvailability = useCallback(async () => {
+  const runAvailability = useCallback(async (forceRefresh = false) => {
     if (!rangeValid) {
       setAvail({});
       return;
@@ -693,7 +693,9 @@ export default function PublicCatalog() {
     // Jangan gunakan hasil ketersediaan dari rentang tanggal sebelumnya.
     setAvail({});
     try {
-      const rows = await catalogAvailability(range.start, range.end);
+      const rows = await catalogAvailability(range.start, range.end, {
+        force: forceRefresh,
+      });
       const map = {};
       (rows || []).forEach((row) => {
         map[row.product_id] = row;
@@ -891,7 +893,7 @@ export default function PublicCatalog() {
               />
             </Field>
             <Btn
-              onClick={runAvailability}
+              onClick={() => runAvailability(true)}
               loading={checking}
               className="py-2.5"
               data-testid="public-check-availability"
