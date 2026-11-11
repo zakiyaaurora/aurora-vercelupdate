@@ -248,31 +248,89 @@ export const checkAvailability = (
 
 /* ---------------------------- Availability ------------------------------ */
 
-// Ketersediaan semua produk aktif untuk satu rentang tanggal
+// Cache ringan di memori browser untuk menghindari RPC identik berulang.
+// Cache hanya berlaku selama tab aplikasi masih hidup dan otomatis kedaluwarsa.
+const availabilityCache = new Map();
+const availabilityInFlight = new Map();
+
+const readCachedRpc = async ({ cache, inFlight, key, ttlMs, load, force = false }) => {
+  const now = Date.now();
+
+  // Buang entri kedaluwarsa agar cache tidak terus membesar.
+  for (const [cacheKey, entry] of cache.entries()) {
+    if (entry.expiresAt <= now) cache.delete(cacheKey);
+  }
+
+  const cached = cache.get(key);
+
+  if (!force && cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  // Gabungkan request identik yang sedang berjalan (mis. React StrictMode).
+  if (!force && inFlight.has(key)) {
+    return inFlight.get(key);
+  }
+
+  const request = Promise.resolve()
+    .then(load)
+    .then((value) => {
+      // Jangan biarkan request lama menimpa hasil refresh yang lebih baru.
+      if (inFlight.get(key) === request) {
+        cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+      }
+      return value;
+    })
+    .finally(() => {
+      if (inFlight.get(key) === request) inFlight.delete(key);
+    });
+
+  inFlight.set(key, request);
+  return request;
+};
+
+// Ketersediaan katalog: cache singkat 30 detik untuk mengurangi RPC berulang.
+// Gunakan { force: true } untuk meminta data terbaru, misalnya tombol refresh.
 export const catalogAvailability = (
   startDate,
-  endDate
-) =>
-  supabase
-    .rpc("catalog_availability", {
-      p_start: startDate,
-      p_end: endDate,
-    })
-    .then(throwOn);
+  endDate,
+  { force = false } = {}
+) => {
+  const key = `${startDate}:${endDate}`;
+  return readCachedRpc({
+    cache: availabilityCache,
+    inFlight: availabilityInFlight,
+    key,
+    ttlMs: 30 * 1000,
+    force,
+    load: () =>
+      supabase
+        .rpc("catalog_availability", {
+          p_start: startDate,
+          p_end: endDate,
+        })
+        .then(throwOn),
+  });
+};
 
-// Jadwal per unit
-export const productSchedule = (
-  productId,
-  startDate,
-  endDate
-) =>
-  supabase
-.rpc("product_schedule_public", {
-      p_product_id: productId,
-      p_start: startDate,
-      p_end: endDate,
-    })
-    .then(throwOn);
+// Jadwal per unit: cache 2 menit per produk dan bulan.
+// Data jadwal bersifat informatif; submit pengajuan tetap melakukan cek terbaru.
+export const productSchedule = (productId, startDate, endDate, { force = false } = {}) => {
+  const key = `${productId}:${startDate}:${endDate}`;
+  return readCachedRpc({
+    cache: availabilityCache,
+    inFlight: availabilityInFlight,
+    key: `schedule:${key}`,
+    ttlMs: 2 * 60 * 1000,
+    force,
+    load: () =>
+      supabase.rpc("product_schedule_public", {
+        p_product_id: productId,
+        p_start: startDate,
+        p_end: endDate,
+      }).then(throwOn),
+  });
+};
 
 // Katalog publik
 export const publicCatalog = () =>
